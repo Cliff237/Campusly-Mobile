@@ -8,15 +8,28 @@ import { showToast } from '@/ui/Toast';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { createMarkSubmission, deleteMarkSubmission, fetchClassMarkSubmissions, fetchTeacherClasses, updateMarkSubmission } from '@/lib/api/teacherMarks';
 import { fetchAttendanceRoster, fetchAttendanceSessions } from '@/lib/api/attendance';
-import type { MarkAssessmentType, TeacherClass, TeacherMarkSubmission } from '@/lib/types/teacherMarks';
+import { createAssessmentType, deleteAssessmentType, fetchAssessmentTypes } from '@/lib/api/assessmentTypes';
+import type { MarkAssessmentType, TeacherClass, TeacherMarkSubmission, CustomAssessmentType } from '@/lib/types/teacherMarks';
 import type { AttendanceRosterStudent, AttendanceSessionSummary } from '@/lib/types/attendance';
 
-const TYPES: MarkAssessmentType[] = ['quiz', 'assignment', 'project', 'exam'];
-const TYPE_LABELS: Record<MarkAssessmentType, string> = { quiz: 'Quiz', assignment: 'Assignment', project: 'Project', exam: 'Exam' };
-const TYPE_ICONS: Record<MarkAssessmentType, keyof typeof Ionicons.glyphMap> = { quiz: 'document-text-outline', assignment: 'clipboard-outline', project: 'folder-outline', exam: 'school-outline' };
+const DEFAULT_TYPES: MarkAssessmentType[] = ['quiz', 'assignment', 'project', 'exam'];
+const TYPE_LABELS: Record<string, string> = { quiz: 'Quiz', assignment: 'Assignment', project: 'Project', exam: 'Exam' };
+const TYPE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = { quiz: 'document-text-outline', assignment: 'clipboard-outline', project: 'folder-outline', exam: 'school-outline' };
 const STATUS_COLORS: Record<string, string> = { pending_approval: '#f59e0b', approved: '#10b981', rejected: '#ef4444' };
 
 const percent = (score: number, max: number) => max ? Math.round((score / max) * 100) : 0;
+
+const getTypeLabel = (type: string, customTypes: CustomAssessmentType[]) => {
+  if (TYPE_LABELS[type]) return TYPE_LABELS[type];
+  const custom = customTypes.find(t => t.name === type);
+  return custom?.name || type;
+};
+
+const getTypeIcon = (type: string, customTypes: CustomAssessmentType[]): keyof typeof Ionicons.glyphMap => {
+  if (TYPE_ICONS[type]) return TYPE_ICONS[type];
+  const custom = customTypes.find(t => t.name === type);
+  return (custom?.icon as keyof typeof Ionicons.glyphMap) || 'document-outline';
+};
 
 export default function TeacherMarksScreen() {
   const { accessToken } = useAuth();
@@ -26,11 +39,13 @@ export default function TeacherMarksScreen() {
   const [classes, setClasses] = useState<TeacherClass[]>([]);
   const [selected, setSelected] = useState<TeacherClass | null>(null);
   const [submissions, setSubmissions] = useState<TeacherMarkSubmission[]>([]);
+  const [customTypes, setCustomTypes] = useState<CustomAssessmentType[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [composer, setComposer] = useState(false);
   const [editing, setEditing] = useState<TeacherMarkSubmission | null>(null);
   const [viewDetail, setViewDetail] = useState<TeacherMarkSubmission | null>(null);
+  const [typeManager, setTypeManager] = useState(false);
   const [filterType, setFilterType] = useState<MarkAssessmentType | 'all'>('all');
 
   const load = useCallback(async (refresh = false) => {
@@ -42,6 +57,17 @@ export default function TeacherMarksScreen() {
       const target = selected && classList.some((item) => item.id === selected.id) ? selected : classList[0] ?? null;
       setSelected(target);
       setSubmissions(target ? await fetchClassMarkSubmissions(target.id, accessToken) : []);
+
+      // Load custom assessment types if we have a selected class
+      if (target) {
+        try {
+          const types = await fetchAssessmentTypes(target.institution_id, accessToken);
+          setCustomTypes(types);
+        } catch (error) {
+          console.error('[Marks] Failed to load custom assessment types:', error);
+          setCustomTypes([]);
+        }
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Could not load marks';
       console.error('[Marks] Load failed', { message, error });
@@ -77,9 +103,11 @@ export default function TeacherMarksScreen() {
     ]);
   };
 
-  const filteredSubmissions = filterType === 'all' 
-    ? submissions 
+  const filteredSubmissions = filterType === 'all'
+    ? submissions
     : submissions.filter(s => s.assessment_type === filterType);
+
+  const allTypes = [...DEFAULT_TYPES, ...customTypes.map(t => t.name)];
 
   const calculateStats = () => {
     if (!submissions.length) return null;
@@ -112,14 +140,24 @@ export default function TeacherMarksScreen() {
             Manage assessments and student grades
           </ThemedText>
         </View>
-        <TouchableOpacity 
-          accessibilityRole="button"
-          accessibilityLabel="Create mark submission"
-          onPress={() => setComposer(true)}
-          className="w-12 h-12 rounded-2xl bg-ocean items-center justify-center shadow-lg"
-        >
-          <Ionicons name="add" size={26} color="#fff" />
-        </TouchableOpacity>
+        <View className="flex-row gap-2">
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Manage assessment types"
+            onPress={() => setTypeManager(true)}
+            className="w-12 h-12 rounded-2xl bg-surface dark:bg-surface-dark border border-border dark:border-border-dark items-center justify-center"
+          >
+            <Ionicons name="options-outline" size={24} color="#64748b" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Create mark submission"
+            onPress={() => setComposer(true)}
+            className="w-12 h-12 rounded-2xl bg-ocean items-center justify-center shadow-lg"
+          >
+            <Ionicons name="add" size={26} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Statistics Dashboard */}
@@ -175,23 +213,29 @@ export default function TeacherMarksScreen() {
       </ScrollView>
 
       {/* Filter */}
-      <View className="flex-row gap-2 mb-4">
-        <TouchableOpacity
-          onPress={() => setFilterType('all')}
-          className={`px-4 py-2 rounded-full ${filterType === 'all' ? 'bg-ocean' : 'bg-surface dark:bg-surface-dark border border-border dark:border-border-dark'}`}
-        >
-          <ThemedText variant="tiny" className={filterType === 'all' ? 'text-white font-bold' : ''}>All</ThemedText>
-        </TouchableOpacity>
-        {TYPES.map((type) => (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        className="mb-4"
+      >
+        <View className="flex-row gap-2">
           <TouchableOpacity
-            key={type}
-            onPress={() => setFilterType(type)}
-            className={`px-4 py-2 rounded-full ${filterType === type ? 'bg-ocean' : 'bg-surface dark:bg-surface-dark border border-border dark:border-border-dark'}`}
+            onPress={() => setFilterType('all')}
+            className={`px-4 py-2 rounded-full ${filterType === 'all' ? 'bg-ocean' : 'bg-surface dark:bg-surface-dark border border-border dark:border-border-dark'}`}
           >
-            <ThemedText variant="tiny" className={filterType === type ? 'text-white font-bold' : ''}>{TYPE_LABELS[type]}</ThemedText>
+            <ThemedText variant="tiny" className={filterType === 'all' ? 'text-white font-bold' : ''}>All</ThemedText>
           </TouchableOpacity>
-        ))}
-      </View>
+          {allTypes.map((type) => (
+            <TouchableOpacity
+              key={type}
+              onPress={() => setFilterType(type)}
+              className={`px-4 py-2 rounded-full ${filterType === type ? 'bg-ocean' : 'bg-surface dark:bg-surface-dark border border-border dark:border-border-dark'}`}
+            >
+              <ThemedText variant="tiny" className={filterType === type ? 'text-white font-bold' : ''}>{getTypeLabel(type, customTypes)}</ThemedText>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
 
       {/* Loading State */}
       {loading ? (
@@ -221,7 +265,7 @@ export default function TeacherMarksScreen() {
             >
               <View className="flex-row items-start">
                 <View className={`w-12 h-12 rounded-2xl items-center justify-center ${submission.assessment_type === 'exam' ? 'bg-berry-soft' : 'bg-ocean-soft'}`}>
-                  <Ionicons name={TYPE_ICONS[submission.assessment_type]} size={24} color={submission.assessment_type === 'exam' ? '#ef4444' : '#6846dc'} />
+                  <Ionicons name={getTypeIcon(submission.assessment_type, customTypes)} size={24} color={submission.assessment_type === 'exam' ? '#ef4444' : '#6846dc'} />
                 </View>
                 <View className="flex-1 ml-4">
                   <View className="flex-row items-center gap-2">
@@ -233,7 +277,7 @@ export default function TeacherMarksScreen() {
                     </View>
                   </View>
                   <ThemedText variant="tiny" className="text-text-muted dark:text-text-muted-dark mt-1">
-                    {TYPE_LABELS[submission.assessment_type]} · Max: {submission.max_score}
+                    {getTypeLabel(submission.assessment_type, customTypes)} · Max: {submission.max_score}
                   </ThemedText>
                 </View>
                 <View className="items-end ml-3">
@@ -287,12 +331,13 @@ export default function TeacherMarksScreen() {
       )}
 
       {/* Compose Modal */}
-      <GradeComposer 
-        visible={composer} 
-        course={selected} 
-        accessToken={accessToken} 
-        onClose={() => setComposer(false)} 
-        onCreated={() => void load(true)} 
+      <GradeComposer
+        visible={composer}
+        course={selected}
+        accessToken={accessToken}
+        onClose={() => setComposer(false)}
+        onCreated={() => void load(true)}
+        customTypes={customTypes}
       />
 
       {/* Edit Modal */}
@@ -302,6 +347,7 @@ export default function TeacherMarksScreen() {
         accessToken={accessToken}
         onClose={() => setEditing(null)}
         onUpdated={() => void load(true)}
+        customTypes={customTypes}
       />
 
       {/* Detail Modal */}
@@ -311,17 +357,29 @@ export default function TeacherMarksScreen() {
         accessToken={accessToken}
         onClose={() => setViewDetail(null)}
         onUpdated={() => void load(true)}
+        customTypes={customTypes}
+      />
+
+      {/* Assessment Type Manager Modal */}
+      <AssessmentTypeManager
+        visible={typeManager}
+        institutionId={selected?.institution_id}
+        customTypes={customTypes}
+        accessToken={accessToken}
+        onClose={() => setTypeManager(false)}
+        onUpdated={() => void load(true)}
       />
     </ScrollView>
   );
 }
 
-function GradeComposer({ visible, course, accessToken, onClose, onCreated }: { 
-  visible: boolean; 
-  course: TeacherClass | null; 
-  accessToken: string | null; 
-  onClose: () => void; 
-  onCreated: () => void; 
+function GradeComposer({ visible, course, accessToken, onClose, onCreated, customTypes }: {
+  visible: boolean;
+  course: TeacherClass | null;
+  accessToken: string | null;
+  onClose: () => void;
+  onCreated: () => void;
+  customTypes: CustomAssessmentType[];
 }) {
   const [title, setTitle] = useState('');
   const [type, setType] = useState<MarkAssessmentType>('quiz');
@@ -332,6 +390,8 @@ function GradeComposer({ visible, course, accessToken, onClose, onCreated }: {
   const [scores, setScores] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const allTypes = [...DEFAULT_TYPES, ...customTypes.map(t => t.name)];
 
   useEffect(() => {
     if (!visible || !course || !accessToken) return;
@@ -427,21 +487,26 @@ function GradeComposer({ visible, course, accessToken, onClose, onCreated }: {
           {/* Assessment Type */}
           <View className="mb-4">
             <ThemedText variant="caption" className="text-text-muted dark:text-text-muted-dark mb-2">Assessment Type</ThemedText>
-            <View className="flex-row gap-2">
-              {TYPES.map((item) => (
-                <TouchableOpacity
-                  key={item}
-                  onPress={() => setType(item)}
-                  className={`flex-1 rounded-xl px-3 py-3 border-2 ${
-                    type === item ? 'bg-ocean border-ocean' : 'bg-surface dark:bg-surface-dark border-border dark:border-border-dark'
-                  }`}
-                >
-                  <ThemedText variant="caption" className={type === item ? 'text-white font-bold text-center' : 'text-center'}>
-                    {TYPE_LABELS[item]}
-                  </ThemedText>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+            >
+              <View className="flex-row gap-2">
+                {allTypes.map((item) => (
+                  <TouchableOpacity
+                    key={item}
+                    onPress={() => setType(item)}
+                    className={`flex-1 rounded-xl px-3 py-3 border-2 ${
+                      type === item ? 'bg-ocean border-ocean' : 'bg-surface dark:bg-surface-dark border-border dark:border-border-dark'
+                    }`}
+                  >
+                    <ThemedText variant="caption" className={type === item ? 'text-white font-bold text-center' : 'text-center'}>
+                      {getTypeLabel(item, customTypes)}
+                    </ThemedText>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
           </View>
 
           {/* Maximum Score */}
@@ -532,18 +597,26 @@ function GradeComposer({ visible, course, accessToken, onClose, onCreated }: {
   );
 }
 
-function EditComposer({ visible, submission, accessToken, onClose, onUpdated }: {
+function EditComposer({ visible, submission, accessToken, onClose, onUpdated, customTypes }: {
   visible: boolean;
   submission: TeacherMarkSubmission | null;
   accessToken: string | null;
   onClose: () => void;
   onUpdated: () => void;
+  customTypes: CustomAssessmentType[];
 }) {
   const [title, setTitle] = useState('');
   const [type, setType] = useState<MarkAssessmentType>('quiz');
   const [maxScore, setMaxScore] = useState('20');
   const [scores, setScores] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+
+  const allTypes = [...DEFAULT_TYPES, ...customTypes.map(t => t.name)];
+  const getTypeLabel = (type: string, customTypes: CustomAssessmentType[]) => {
+    if (TYPE_LABELS[type]) return TYPE_LABELS[type];
+    const custom = customTypes.find(t => t.name === type);
+    return custom?.name || type;
+  };
 
   useEffect(() => {
     if (submission) {
@@ -617,21 +690,26 @@ function EditComposer({ visible, submission, accessToken, onClose, onUpdated }: 
 
           <View className="mb-4">
             <ThemedText variant="caption" className="text-text-muted dark:text-text-muted-dark mb-2">Assessment Type</ThemedText>
-            <View className="flex-row gap-2">
-              {TYPES.map((item) => (
-                <TouchableOpacity
-                  key={item}
-                  onPress={() => setType(item)}
-                  className={`flex-1 rounded-xl px-3 py-3 border-2 ${
-                    type === item ? 'bg-ocean border-ocean' : 'bg-surface dark:bg-surface-dark border-border dark:border-border-dark'
-                  }`}
-                >
-                  <ThemedText variant="caption" className={type === item ? 'text-white font-bold text-center' : 'text-center'}>
-                    {TYPE_LABELS[item]}
-                  </ThemedText>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+            >
+              <View className="flex-row gap-2">
+                {allTypes.map((item) => (
+                  <TouchableOpacity
+                    key={item}
+                    onPress={() => setType(item)}
+                    className={`flex-1 rounded-xl px-3 py-3 border-2 ${
+                      type === item ? 'bg-ocean border-ocean' : 'bg-surface dark:bg-surface-dark border-border dark:border-border-dark'
+                    }`}
+                  >
+                    <ThemedText variant="caption" className={type === item ? 'text-white font-bold text-center' : 'text-center'}>
+                      {getTypeLabel(item, customTypes)}
+                    </ThemedText>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
           </View>
 
           <View className="mb-4">
@@ -695,12 +773,13 @@ function EditComposer({ visible, submission, accessToken, onClose, onUpdated }: 
   );
 }
 
-function AssessmentDetail({ visible, submission, accessToken, onClose, onUpdated }: {
+function AssessmentDetail({ visible, submission, accessToken, onClose, onUpdated, customTypes }: {
   visible: boolean;
   submission: TeacherMarkSubmission | null;
   accessToken: string | null;
   onClose: () => void;
   onUpdated: () => void;
+  customTypes: CustomAssessmentType[];
 }) {
   if (!submission) return null;
 
@@ -733,7 +812,7 @@ function AssessmentDetail({ visible, submission, accessToken, onClose, onUpdated
             <View className="flex-row gap-4">
               <View>
                 <ThemedText variant="tiny" className="text-text-muted dark:text-text-muted-dark">Type</ThemedText>
-                <ThemedText variant="body">{TYPE_LABELS[submission.assessment_type]}</ThemedText>
+                <ThemedText variant="body">{getTypeLabel(submission.assessment_type, customTypes)}</ThemedText>
               </View>
               <View>
                 <ThemedText variant="tiny" className="text-text-muted dark:text-text-muted-dark">Max Score</ThemedText>
@@ -789,6 +868,148 @@ function AssessmentDetail({ visible, submission, accessToken, onClose, onUpdated
               </ThemedText>
             </View>
           )}
+        </ScrollView>
+      </View>
+    </Modal>
+  );
+}
+
+function AssessmentTypeManager({ visible, institutionId, customTypes, accessToken, onClose, onUpdated }: {
+  visible: boolean;
+  institutionId: string | undefined;
+  customTypes: CustomAssessmentType[];
+  accessToken: string | null;
+  onClose: () => void;
+  onUpdated: () => void;
+}) {
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleCreate = async () => {
+    if (!institutionId || !accessToken || !name.trim()) {
+      showToast.error('Required fields', 'Please enter an assessment type name');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await createAssessmentType(institutionId, { name: name.trim(), description: description.trim() }, accessToken);
+      showToast.success('Assessment type created', 'New assessment type added successfully');
+      setName('');
+      setDescription('');
+      onUpdated();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to create assessment type';
+      showToast.error('Creation failed', message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!accessToken) return;
+    Alert.alert('Delete assessment type?', 'This will remove the assessment type. It cannot be deleted if it has existing marks.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try {
+          await deleteAssessmentType(id, accessToken);
+          showToast.success('Deleted', 'Assessment type removed successfully');
+          onUpdated();
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Failed to delete assessment type';
+          showToast.error('Delete failed', message);
+        }
+      }}
+    ]);
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <View className="flex-1 bg-mist dark:bg-bg-dark">
+        <View className="px-5 pt-16 pb-4 bg-surface dark:bg-surface-dark flex-row items-center border-b border-border dark:border-border-dark">
+          <TouchableOpacity onPress={onClose} className="w-10 h-10 items-center justify-center">
+            <Ionicons name="close" size={24} color="#0f172a" />
+          </TouchableOpacity>
+          <View className="flex-1">
+            <ThemedText variant="heading">Assessment Types</ThemedText>
+            <ThemedText variant="tiny">Manage custom assessment types</ThemedText>
+          </View>
+        </View>
+        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
+          {/* Create New Type */}
+          <View className="rounded-2xl bg-surface dark:bg-surface-dark border border-border dark:border-border-dark p-5 mb-4">
+            <ThemedText variant="subheading" className="mb-3">Create New Type</ThemedText>
+            <View className="mb-3">
+              <ThemedText variant="caption" className="text-text-muted dark:text-text-muted-dark mb-2">Name</ThemedText>
+              <TextInput
+                value={name}
+                onChangeText={setName}
+                placeholder="e.g., Lab, Practical, Midterm"
+                placeholderTextColor="#64748b"
+                className="rounded-xl bg-mist dark:bg-bg-dark border border-border dark:border-border-dark px-4 py-3 text-text dark:text-text-dark"
+              />
+            </View>
+            <View className="mb-3">
+              <ThemedText variant="caption" className="text-text-muted dark:text-text-muted-dark mb-2">Description (optional)</ThemedText>
+              <TextInput
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Brief description of this assessment type"
+                placeholderTextColor="#64748b"
+                className="rounded-xl bg-mist dark:bg-bg-dark border border-border dark:border-border-dark px-4 py-3 text-text dark:text-text-dark"
+              />
+            </View>
+            <TouchableOpacity
+              disabled={loading}
+              onPress={() => void handleCreate()}
+              className={`rounded-xl py-3 items-center ${loading ? 'bg-ocean/50' : 'bg-ocean'}`}
+            >
+              <ThemedText variant="body" className="text-white font-semibold">
+                {loading ? 'Creating...' : 'Create Type'}
+              </ThemedText>
+            </TouchableOpacity>
+          </View>
+
+          {/* Custom Types List */}
+          <ThemedText variant="subheading" className="mb-3">Custom Types</ThemedText>
+          {customTypes.length === 0 ? (
+            <View className="rounded-2xl bg-surface dark:bg-surface-dark border border-border dark:border-border-dark p-8 items-center">
+              <Ionicons name="document-outline" size={48} color="#64748b" />
+              <ThemedText variant="caption" className="text-text-muted dark:text-text-muted-dark mt-3 text-center">
+                No custom assessment types yet
+              </ThemedText>
+            </View>
+          ) : (
+            customTypes.map((type) => (
+              <View
+                key={type.id}
+                className="rounded-2xl bg-surface dark:bg-surface-dark border border-border dark:border-border-dark p-4 mb-3 flex-row items-center justify-between"
+              >
+                <View className="flex-1">
+                  <ThemedText variant="body">{type.name}</ThemedText>
+                  {type.description && (
+                    <ThemedText variant="tiny" className="text-text-muted dark:text-text-muted-dark mt-1">
+                      {type.description}
+                    </ThemedText>
+                  )}
+                </View>
+                <TouchableOpacity
+                  onPress={() => void handleDelete(type.id)}
+                  className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-900/20 items-center justify-center"
+                >
+                  <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                </TouchableOpacity>
+              </View>
+            ))
+          )}
+
+          {/* Default Types Info */}
+          <View className="mt-6 rounded-2xl bg-surface dark:bg-surface-dark border border-border dark:border-border-dark p-4">
+            <ThemedText variant="caption" className="text-text-muted dark:text-text-muted-dark">
+              Default types (Quiz, Assignment, Project, Exam) cannot be deleted. You can only manage custom types created here.
+            </ThemedText>
+          </View>
         </ScrollView>
       </View>
     </Modal>

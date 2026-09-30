@@ -1,4 +1,4 @@
-export type MarkAssessmentType = 'exam' | 'quiz' | 'assignment' | 'project';
+export type MarkAssessmentType = 'exam' | 'quiz' | 'assignment' | 'project' | string;
 
 export interface TeacherClass {
   id: string;
@@ -8,6 +8,16 @@ export interface TeacherClass {
   course_name: string;
   section: string;
   enrolled_count: number;
+}
+
+export interface CustomAssessmentType {
+  id: string;
+  institution_id: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  color?: string;
+  created_at: string;
 }
 
 export interface TeacherMarkEntry {

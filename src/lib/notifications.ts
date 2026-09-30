@@ -1,6 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { api } from './api';
+import { API_URL } from './config';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -11,36 +12,46 @@ Notifications.setNotificationHandler({
 });
 
 export async function requestNotificationPermission(): Promise<boolean> {
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'default',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#FF231F7C',
-    });
-  }
+  try {
+    if (Platform.OS === 'android') {
+      try {
+        await Notifications.setNotificationChannelAsync('default', {
+          name: 'default',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#FF231F7C',
+        });
+      } catch (error) {
+        console.warn('[Notifications] Failed to set notification channel (may not work in Expo Go):', error);
+        // Continue anyway - notification channel setup is not critical for login
+      }
+    }
 
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
 
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-  }
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
 
-  if (finalStatus !== 'granted') {
-    console.log('[Notifications] Permission not granted');
+    if (finalStatus !== 'granted') {
+      console.log('[Notifications] Permission not granted');
+      return false;
+    }
+
+    console.log('[Notifications] Permission granted');
+    return true;
+  } catch (error) {
+    console.error('[Notifications] Failed to request notification permission:', error);
     return false;
   }
-
-  console.log('[Notifications] Permission granted');
-  return true;
 }
 
 export async function getPushToken(): Promise<string | null> {
   try {
     const token = await Notifications.getExpoPushTokenAsync({
-      projectId: '97df6fd5-9ce0-4c6f-acc9-eb57b66e55bd',
+      projectId: '33849529-b7ce-4730-9ed5-59c522a9cfdc',
     });
     console.log('[Notifications] Push token obtained:', token.data);
     return token.data;
@@ -98,7 +109,7 @@ async function apiRequest<T>(
   options: RequestInit = {},
   accessToken?: string,
 ): Promise<T> {
-  const url = process.env.EXPO_PUBLIC_API_URL + endpoint;
+  const url = API_URL + endpoint;
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
