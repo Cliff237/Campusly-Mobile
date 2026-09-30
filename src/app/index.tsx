@@ -1,98 +1,56 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+// src/app/index.tsx
+import { Redirect } from 'expo-router';
+import { View, ActivityIndicator } from 'react-native';
+import { useColorScheme } from 'nativewind';
+import { useAuth } from '@/lib/auth/AuthContext';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+/**
+ * Root Entry Point — Smart Routing Hub
+ *
+ * Routing Logic:
+ * ─────────────────────────────────────────────────────────────
+ * 1. While hydrating auth state from SecureStore → show loading
+ * 2. Not authenticated              → Auth screen
+ * 3. Platform Admin                 → Admin dashboard (always)
+ * 4. Any other user (bound or not)  → Discover screen (the hub)
+ *
+ * Why Discover-first?
+ * ─────────────────────────────────────────────────────────────
+ * Campusly is multi-tenant AND multi-role. A user can be a
+ * Student at Institute1, Teacher at Institute2, Guardian at
+ * Institute3, and Staff at Institute4. Discover serves as the
+ * central hub where they see ALL their contexts ("Your Campuses"
+ * stories) and can switch between them or explore new institutions.
+ *
+ * The selected institution persists in AsyncStorage so returning
+ * users can quickly jump back into their last workspace from
+ * Discover, but Discover itself is always the "home" tab.
+ */
+export default function Index() {
+  const { user, isAuthenticated, isReady } = useAuth();
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
+  // 1. Wait for auth state to hydrate from SecureStore
+  //    (prevents logged-in users from briefly seeing the auth screen)
+  if (!isReady) {
     return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: isDark ? '#0f172a' : '#f8fafc',
+        }}
+      >
+        <ActivityIndicator size="large" color="#4f46e5" />
+      </View>
     );
   }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
+
+  // 2. Not authenticated → auth screen
+  if (!isAuthenticated) {
+    return <Redirect href="/(auth)"  />;
+  }
+  return <Redirect href="/(tabs)/discover" />;
 }
-
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
-
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
-  },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
-  },
-});
