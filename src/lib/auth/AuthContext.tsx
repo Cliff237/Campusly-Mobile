@@ -5,6 +5,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '@/lib/api';
 import { authStorage } from '@/lib/authStorage';
 import { fetchMyMemberships, type Membership } from '@/lib/api/discover/memberships';
+import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
+import {
+  requestNotificationPermission,
+  getPushToken,
+  registerPushTokenWithBackend,
+  setupNotificationListener,
+  setupForegroundNotificationListener,
+} from '@/lib/notifications';
 
 export interface User {
   id: string;
@@ -104,6 +113,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUser(currentUser);
             await authStorage.setItem(USER_KEY, JSON.stringify(currentUser));
             await loadMemberships(token);
+
+            // Register push token on session restore if not already done
+            const hasPermission = await requestNotificationPermission();
+            if (hasPermission) {
+              const pushToken = await getPushToken();
+              if (pushToken) {
+                const deviceId = Constants.deviceId || Constants.expoConfig?.extra?.deviceId || 'unknown';
+                try {
+                  await registerPushTokenWithBackend(token, pushToken, deviceId);
+                } catch (error) {
+                  console.error('[Auth] Failed to register push token on restore:', error);
+                }
+              }
+            }
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Unknown session restore error';
             const isUnauthorized = /unauthorized|401|token/i.test(message);
@@ -152,10 +175,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     hydrate();
   }, [loadMemberships]);
 
+  // Setup notification listeners
+  useEffect(() => {
+    const cleanupTapped = setupNotificationListener((notification) => {
+      console.log('[Auth] Notification tapped:', notification);
+      // Handle navigation to attendance screen based on notification data
+      const data = notification.data as any;
+      if (data?.type === 'attendance' && data?.sessionId) {
+        // Navigate to attendance screen
+        // This will be handled by the app's navigation system
+        console.log('[Auth] Navigate to attendance session:', data.sessionId);
+      }
+    });
+
+    const cleanupForeground = setupForegroundNotificationListener((notification) => {
+      console.log('[Auth] Foreground notification:', notification);
+      // Handle foreground notifications (in-app alerts)
+    });
+
+    return () => {
+      cleanupTapped?.();
+      cleanupForeground?.();
+    };
+  }, []);
+
   // 3. Login Action
   const login = async (identifier: string, password: string): Promise<User> => {
     const data = await api.login(identifier, password);
-    
+
     const newUser = data.user;
     const newAccessToken = data.access_token;
     const newRefreshToken = data.refresh_token;
@@ -169,6 +216,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await authStorage.setItem(USER_KEY, JSON.stringify(newUser));
 
     await loadMemberships(newAccessToken);
+
+    // Request notification permission and register push token
+    const hasPermission = await requestNotificationPermission();
+    if (hasPermission) {
+      const pushToken = await getPushToken();
+      if (pushToken) {
+        const deviceId = Constants.deviceId || Constants.expoConfig?.extra?.deviceId || 'unknown';
+        try {
+          await registerPushTokenWithBackend(newAccessToken, pushToken, deviceId);
+        } catch (error) {
+          console.error('[Auth] Failed to register push token:', error);
+        }
+      }
+    }
 
     return newUser;
   };

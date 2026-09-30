@@ -15,6 +15,12 @@ export interface StartAttendancePayload {
   class_id: string;
   session_date: string;
   period?: string;
+  penalty_deduction?: number;
+  ble_enabled?: boolean;
+  ble_distance_meters?: number;
+  manual_marking_enabled?: boolean;
+  late_after_minutes?: number;
+  assessment_target?: string;
 }
 
 export interface StartAttendanceResult {

@@ -22,11 +22,7 @@
         "android.permission.BLUETOOTH_ADVERTISE",
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.RECORD_AUDIO",
-        "android.permission.BLUETOOTH_SCAN",
-        "android.permission.BLUETOOTH_CONNECT",
-        "android.permission.BLUETOOTH_ADVERTISE",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.POST_NOTIFICATIONS"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -59,7 +55,15 @@
         }
       ],
       "expo-video",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#208AEF",
+          "sounds": []
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
@@ -68,14 +72,11 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "97df6fd5-9ce0-4c6f-acc9-eb57b66e55bd"
+        "projectId": "33849529-b7ce-4730-9ed5-59c522a9cfdc"
       }
     },
     "runtimeVersion": {
       "policy": "appVersion"
-    },
-    "updates": {
-      "url": "https://u.expo.dev/97df6fd5-9ce0-4c6f-acc9-eb57b66e55bd"
     }
   }
 }

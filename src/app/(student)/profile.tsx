@@ -74,7 +74,7 @@ export default function StudentProfileScreen() {
         </View>
         <View className="px-4 py-3">
           <ThemedText variant="body">Notifications</ThemedText>
-          <ThemedText variant="tiny" className="text-text-muted dark:text-text-muted-dark">Push registration will appear after the device API exists</ThemedText>
+          <ThemedText variant="tiny" className="text-text-muted dark:text-text-muted-dark">Push notifications enabled for attendance alerts</ThemedText>
         </View>
       </View>
 
