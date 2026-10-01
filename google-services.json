@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1043636375777",
+    "project_id": "campusly237",
+    "storage_bucket": "campusly237.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1043636375777:android:f430f5e3e45ee0a24ba7a0",
+        "android_client_info": {
+          "package_name": "com.cliff237.campuslymobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBrwKJ51B6pQLgjH1h73OsxmqOaG0kVw1o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -3,6 +3,7 @@ import Constants from 'expo-constants';
 
 const DEFAULT_API_URL = 'http://localhost:5000';
 
+
 function getExpoDevHost(): string | null {
   const candidates = [
     Constants.expoConfig?.hostUri,
@@ -77,5 +78,17 @@ function resolveApiUrl(): string {
 }
 
 export const API_URL = resolveApiUrl();
+
+console.log('===== Campusly API Debug =====');
+console.log('Platform:', Platform.OS);
+console.log('EXPO_PUBLIC_API_URL:', process.env.EXPO_PUBLIC_API_URL);
+console.log('Expo hostUri:', Constants.expoConfig?.hostUri);
+console.log('Linking URI:', Constants.linkingUri);
+console.log(
+  'Debugger host:',
+  (Constants as { debuggerHost?: string }).debuggerHost
+);
+console.log('Resolved API URL:', API_URL);
+console.log('==============================');
 
 console.log('Campusly API URL:', API_URL);

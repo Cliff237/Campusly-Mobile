@@ -5,8 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '@/lib/api';
 import { authStorage } from '@/lib/authStorage';
 import { fetchMyMemberships, type Membership } from '@/lib/api/discover/memberships';
-import * as Notifications from 'expo-notifications';
-import Constants from 'expo-constants';
+import { getDeviceIdentifier } from '@/lib/api/ble';
 import {
   requestNotificationPermission,
   getPushToken,
@@ -119,7 +118,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (hasPermission) {
               const pushToken = await getPushToken();
               if (pushToken) {
-                const deviceId = Constants.deviceId || Constants.expoConfig?.extra?.deviceId || 'unknown';
+                const deviceId = await getDeviceIdentifier();
+                console.log('[Auth] Registering push token on restore:', { deviceId, pushToken });
                 try {
                   await registerPushTokenWithBackend(token, pushToken, deviceId);
                 } catch (error) {
@@ -222,7 +222,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (hasPermission) {
       const pushToken = await getPushToken();
       if (pushToken) {
-        const deviceId = Constants.deviceId || Constants.expoConfig?.extra?.deviceId || 'unknown';
+        const deviceId = await getDeviceIdentifier();
+        console.log('[Auth] Registering push token on login:', { deviceId, pushToken });
         try {
           await registerPushTokenWithBackend(newAccessToken, pushToken, deviceId);
         } catch (error) {

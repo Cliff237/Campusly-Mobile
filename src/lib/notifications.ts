@@ -1,17 +1,28 @@
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { api } from './api';
 import { API_URL } from './config';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+// Conditional import to support Expo Go (SDK 53+)
+let Notifications: any = null;
+try {
+  Notifications = require('expo-notifications');
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    }),
+  });
+} catch (error) {
+  console.warn('[Notifications] expo-notifications not available (may be running in Expo Go):', error);
+}
 
 export async function requestNotificationPermission(): Promise<boolean> {
+  if (!Notifications) {
+    console.log('[Notifications] expo-notifications not available, skipping permission request');
+    return false;
+  }
+
   try {
     if (Platform.OS === 'android') {
       try {
@@ -49,9 +60,16 @@ export async function requestNotificationPermission(): Promise<boolean> {
 }
 
 export async function getPushToken(): Promise<string | null> {
+  if (!Notifications) {
+    console.log('[Notifications] expo-notifications not available, skipping push token retrieval');
+    return null;
+  }
+
   try {
+    // With Firebase configured via plugins, expo-notifications automatically uses FCM on Android
+    // and Expo push service on iOS
     const token = await Notifications.getExpoPushTokenAsync({
-      projectId: '33849529-b7ce-4730-9ed5-59c522a9cfdc',
+      projectId: '04c2c085-1d53-4135-bb58-238136c1fdef',
     });
     console.log('[Notifications] Push token obtained:', token.data);
     return token.data;
@@ -67,18 +85,19 @@ export async function registerPushTokenWithBackend(
   deviceIdentifier: string,
 ): Promise<void> {
   try {
+    console.log('[Notifications] Registering push token:', { pushToken, deviceIdentifier });
     await apiRequest(
       '/notifications/register-token',
       {
         method: 'POST',
         body: JSON.stringify({
-          push_token: pushToken,
-          device_identifier: deviceIdentifier,
+          pushToken: pushToken,
+          deviceIdentifier: deviceIdentifier,
         }),
       },
       accessToken,
     );
-    console.log('[Notifications] Push token registered with backend');
+    console.log('[Notifications] Push token registered with backend successfully');
   } catch (error) {
     console.error('[Notifications] Failed to register push token:', error);
     throw error;
@@ -86,7 +105,12 @@ export async function registerPushTokenWithBackend(
 }
 
 export function setupNotificationListener(callback: (notification: any) => void): () => void {
-  const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+  if (!Notifications) {
+    console.log('[Notifications] expo-notifications not available, skipping notification listener setup');
+    return () => {};
+  }
+
+  const subscription = Notifications.addNotificationResponseReceivedListener((response: { notification: { request: { content: any; }; }; }) => {
     const notification = response.notification.request.content;
     console.log('[Notifications] Notification tapped:', notification);
     callback(notification);
@@ -96,7 +120,12 @@ export function setupNotificationListener(callback: (notification: any) => void)
 }
 
 export function setupForegroundNotificationListener(callback: (notification: any) => void): () => void {
-  const subscription = Notifications.addNotificationReceivedListener((notification) => {
+  if (!Notifications) {
+    console.log('[Notifications] expo-notifications not available, skipping foreground notification listener setup');
+    return () => {};
+  }
+
+  const subscription = Notifications.addNotificationReceivedListener((notification: any) => {
     console.log('[Notifications] Foreground notification received:', notification);
     callback(notification);
   });
