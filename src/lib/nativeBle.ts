@@ -51,13 +51,19 @@ export async function stopAttendanceBeacon(): Promise<void> {
 
 export async function startAttendanceScan(onDeviceFound: (device: unknown) => void): Promise<() => void> {
   ensureNativeBle();
-  const emitter = new NativeEventEmitter(nativeModule as NativeModule);
-  const subscription = emitter.addListener('onDeviceFound', onDeviceFound);
-  await BLEAdvertiser.scanByService(ATTENDANCE_SERVICE_UUID, {});
-  return () => {
-    subscription.remove();
-    void BLEAdvertiser.stopScan();
-  };
+  
+  try {
+    const emitter = new NativeEventEmitter(nativeModule as NativeModule);
+    const subscription = emitter.addListener('onDeviceFound', onDeviceFound);
+    await BLEAdvertiser.scanByService(ATTENDANCE_SERVICE_UUID, {});
+    return () => {
+      subscription.remove();
+      void BLEAdvertiser.stopScan();
+    };
+  } catch (error) {
+    console.error('[nativeBle] Failed to start scan:', error);
+    throw new Error('BLE scan failed. Please ensure Bluetooth is enabled and the app has the necessary permissions.');
+  }
 }
 
 export async function stopAttendanceScan(): Promise<void> {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -101,6 +101,7 @@ export default function LiveAttendanceScreen() {
     [loading, setLoading] = useState(true),
     [query, setQuery] = useState(""),
     [closing, setClosing] = useState(false);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const name = useMemo(() => {
     try {
       return decodeURIComponent(p.courseName || "Course");
@@ -108,15 +109,15 @@ export default function LiveAttendanceScreen() {
       return p.courseName || "Course";
     }
   }, [p.courseName]);
-  const load = useCallback(async () => {
+  const load = useCallback(async (showLoading = false) => {
     if (!accessToken || !p.classId) return;
-    setLoading(true);
+    if (showLoading) setLoading(true);
     try {
       console.log("[Attendance] Loading live roster", {
         sessionId: p.sessionId,
         classId: p.classId,
       });
-      setRoster(await fetchAttendanceRoster(p.classId, accessToken));
+      setRoster(await fetchAttendanceRoster(p.classId, accessToken, p.sessionId));
     } catch (e) {
       console.error("[Attendance] Roster load failed", e);
       showToast.error(
@@ -124,12 +125,28 @@ export default function LiveAttendanceScreen() {
         e instanceof Error ? e.message : "Could not load class roster",
       );
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   }, [accessToken, p.classId, p.sessionId]);
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Poll for roster updates every 3 seconds to show real-time check-ins
+  useEffect(() => {
+    if (!accessToken || !p.classId || closing) return;
+    
+    pollingRef.current = setInterval(() => {
+      void load(false); // Don't show loading during polling
+    }, 3000);
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [accessToken, p.classId, closing, load]);
   useEffect(() => () => { void stopBeacon(); }, [stopBeacon]);
   const present = roster.filter((s) => s.status === "present").length,
     shown = roster.filter((s) =>
@@ -158,6 +175,8 @@ export default function LiveAttendanceScreen() {
         accessToken,
       );
       haptics.selection();
+      // Reload roster to get the actual state from the server
+      void load(false);
     } catch (e) {
       console.error("[Attendance] Manual mark failed", e);
       showToast.error(

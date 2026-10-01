@@ -28,9 +28,12 @@ export async function startAttendanceSession(
   return result;
 }
 
-export async function fetchAttendanceRoster(classId: string, accessToken: string): Promise<AttendanceRosterStudent[]> {
-  console.log('[Attendance] Loading class roster', { classId });
-  return apiRequest<AttendanceRosterStudent[]>(`/teacher/classes/${classId}/roster`, {}, accessToken);
+export async function fetchAttendanceRoster(classId: string, accessToken: string, sessionId?: string): Promise<AttendanceRosterStudent[]> {
+  console.log('[Attendance] Loading class roster', { classId, sessionId });
+  const url = sessionId 
+    ? `/teacher/classes/${classId}/roster?sessionId=${encodeURIComponent(sessionId)}`
+    : `/teacher/classes/${classId}/roster`;
+  return apiRequest<AttendanceRosterStudent[]>(url, {}, accessToken);
 }
 
 export async function fetchAttendanceSessions(classId: string, accessToken: string): Promise<AttendanceSessionSummary[]> {

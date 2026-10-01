@@ -1,6 +1,7 @@
 // src/lib/auth/AuthContext.tsx
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
 
 import { api } from '@/lib/api';
 import { authStorage } from '@/lib/authStorage';
@@ -70,6 +71,7 @@ const INSTITUTION_KEY = 'campusly_selected_institution';
 const MEMBERSHIP_KEY = 'campusly_selected_membership';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [, setRefreshToken] = useState<string | null>(null);
@@ -177,14 +179,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Setup notification listeners
   useEffect(() => {
-    const cleanupTapped = setupNotificationListener((notification) => {
-      console.log('[Auth] Notification tapped:', notification);
+    const cleanupTapped = setupNotificationListener((notification, action) => {
+      console.log('[Auth] Notification tapped:', notification, 'Action:', action);
       // Handle navigation to attendance screen based on notification data
       const data = notification.data as any;
-      if (data?.type === 'attendance' && data?.sessionId) {
-        // Navigate to attendance screen
-        // This will be handled by the app's navigation system
+      
+      if (action === 'MARK_PRESENT' && data?.type === 'attendance' && data?.sessionId) {
+        // Navigate to student schedule screen with session info
+        console.log('[Auth] Mark Present button tapped for session:', data.sessionId);
+        router.push({
+          pathname: '/(student)/schedule',
+          params: { sessionId: data.sessionId },
+        });
+      } else if (data?.type === 'attendance' && data?.sessionId) {
+        // Regular notification tap - navigate to attendance screen
         console.log('[Auth] Navigate to attendance session:', data.sessionId);
+        router.push({
+          pathname: '/(student)/schedule',
+          params: { sessionId: data.sessionId },
+        });
       }
     });
 
@@ -197,7 +210,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cleanupTapped?.();
       cleanupForeground?.();
     };
-  }, []);
+  }, [router]);
 
   // 3. Login Action
   const login = async (identifier: string, password: string): Promise<User> => {

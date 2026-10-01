@@ -13,6 +13,20 @@ try {
       shouldSetBadge: true,
     }),
   });
+
+  // TODO: Set up notification category with action button for attendance
+  // This requires the correct format for Expo SDK 57 - currently commented out due to API compatibility issues
+  // if (Platform.OS === 'android') {
+  //   Notifications.setNotificationCategoryAsync('ATTENDANCE', {
+  //     actions: [
+  //       {
+  //         identifier: 'MARK_PRESENT',
+  //         title: 'Mark Present',
+  //         allowsTextInput: false,
+  //       },
+  //     ],
+  //   });
+  // }
 } catch (error) {
   console.warn('[Notifications] expo-notifications not available (may be running in Expo Go):', error);
 }
@@ -104,16 +118,19 @@ export async function registerPushTokenWithBackend(
   }
 }
 
-export function setupNotificationListener(callback: (notification: any) => void): () => void {
+export function setupNotificationListener(callback: (notification: any, action?: string) => void): () => void {
   if (!Notifications) {
     console.log('[Notifications] expo-notifications not available, skipping notification listener setup');
     return () => {};
   }
 
-  const subscription = Notifications.addNotificationResponseReceivedListener((response: { notification: { request: { content: any; }; }; }) => {
+  const subscription = Notifications.addNotificationResponseReceivedListener((response: { notification: { request: { content: any; }; }; actionIdentifier: string; }) => {
     const notification = response.notification.request.content;
     console.log('[Notifications] Notification tapped:', notification);
-    callback(notification);
+    console.log('[Notifications] Action identifier:', response.actionIdentifier);
+    
+    // Pass both notification data and action identifier to callback
+    callback(notification, response.actionIdentifier);
   });
 
   return () => subscription.remove();

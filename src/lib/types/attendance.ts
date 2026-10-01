@@ -33,6 +33,7 @@ export interface AttendanceRosterStudent {
   membership_id: string;
   full_name: string;
   status: 'unmarked' | 'present' | 'absent' | 'suspicious';
+  checkin_time?: string | null;
 }
 
 export interface AttendanceSessionSummary {
