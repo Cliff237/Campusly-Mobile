@@ -1,10 +1,13 @@
 // src/components/explorer/ExplorerFeed.tsx
-import { View, FlatList, ActivityIndicator } from 'react-native';
+import { View } from 'react-native';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
-import { ThemedText } from '@/ui/ThemedText';
-import { PostCard } from './PostCard';
+
 import type { PublicPost } from '@/lib/types/explorer';
-import { Ionicons } from '@expo/vector-icons';
+import { EmptyState } from '@/ui/EmptyState';
+import { Skeleton } from '@/ui/Skeleton';
+import { COLUMN } from '@/ui/layout';
+import { useAppTheme } from '@/ui/useAppTheme';
+import { PostCard } from './PostCard';
 
 interface ExplorerFeedProps {
   posts: PublicPost[];
@@ -13,43 +16,51 @@ interface ExplorerFeedProps {
 }
 
 export function ExplorerFeed({ posts, loading, onReact }: ExplorerFeedProps) {
+  const { colors } = useAppTheme();
+
   if (loading) {
     return (
-      <Animated.View entering={FadeIn.duration(250)} className="py-16 items-center">
-        <ActivityIndicator size="large" color="#4f46e5" />
-        <ThemedText variant="muted" className="mt-3">Loading updates...</ThemedText>
+      <Animated.View entering={FadeIn.duration(250)} style={[COLUMN, { paddingHorizontal: 20, paddingTop: 20 }]}>
+        {[0, 1].map((i) => (
+          <View
+            key={i}
+            style={{
+              marginBottom: 14,
+              padding: 16,
+              gap: 12,
+              borderRadius: 22,
+              borderWidth: 1,
+              borderColor: colors.border,
+              backgroundColor: colors.surface,
+            }}
+          >
+            <Skeleton width={110} height={26} radius={13} />
+            <Skeleton width="85%" height={18} />
+            <Skeleton height={14} />
+            <Skeleton width="70%" height={14} />
+          </View>
+        ))}
       </Animated.View>
     );
   }
 
   if (posts.length === 0) {
     return (
-      <Animated.View entering={FadeInDown.duration(400)} className="py-16 items-center px-8">
-        <Animated.View entering={FadeInDown.duration(500).delay(100)} className="w-20 h-20 rounded-3xl bg-accent-start/10 items-center justify-center mb-5">
-          <Ionicons name="newspaper-outline" size={34} color="#4f46e5" />
-        </Animated.View>
-        <ThemedText variant="subheading" className="text-center text-text dark:text-text-dark mb-2">
-          No posts yet
-        </ThemedText>
-        <ThemedText variant="muted" className="text-center">
-          This institution has not published any announcements yet. Check back later for updates.
-        </ThemedText>
+      <Animated.View entering={FadeInDown.duration(400)} style={{ paddingTop: 24, paddingBottom: 120 }}>
+        <EmptyState
+          icon="newspaper-outline"
+          title="No posts yet"
+          message="This institution has not published any announcements yet. Check back later for updates."
+        />
       </Animated.View>
     );
   }
 
   return (
-    <View className="px-5 py-6">
-      <ThemedText variant="subheading" className="text-text dark:text-text-dark mb-4">Feed</ThemedText>
-      <FlatList
-        data={posts}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <PostCard post={item} onReact={() => onReact(item.id)} />
-        )}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 }} // Space for sticky CTA
-      />
+    <View style={[COLUMN, { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 120 }]}>
+      {posts.map((item) => (
+        <PostCard key={item.id} post={item} onReact={() => onReact(item.id)} />
+      ))}
     </View>
   );
 }

@@ -1,8 +1,13 @@
 // components/discover/FilterBottomSheet.tsx
-import { Modal, View, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { ThemedText } from '@/ui/ThemedText';
+import { Pressable, View } from 'react-native';
+
 import { haptics } from '@/lib/haptics';
+import { AppText } from '@/ui/AppText';
+import { Button } from '@/ui/Button';
+import { Chip } from '@/ui/Chip';
+import { Sheet } from '@/ui/Sheet';
+import { useAppTheme } from '@/ui/useAppTheme';
 
 interface FilterBottomSheetProps {
   visible: boolean;
@@ -22,68 +27,91 @@ const TYPES = [
   { value: 'secondary', label: 'Secondary school' },
 ];
 
+/** One selectable row of the country list. */
+function OptionRow({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  const { colors } = useAppTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
+      style={({ pressed }) => ({
+        minHeight: 54,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        borderRadius: 16,
+        borderWidth: 1.5,
+        borderColor: selected ? colors.brand : colors.border,
+        backgroundColor: selected ? colors.brandSoft : pressed ? colors.surfaceMuted : 'transparent',
+      })}
+    >
+      <AppText weight={selected ? 'bold' : 'medium'} tone={selected ? 'default' : 'secondary'} style={{ fontSize: 15.5 }}>
+        {label}
+      </AppText>
+      <View
+        style={{
+          width: 24,
+          height: 24,
+          borderRadius: 12,
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderWidth: selected ? 0 : 1.5,
+          borderColor: colors.borderStrong,
+          backgroundColor: selected ? colors.brand : 'transparent',
+        }}
+      >
+        {selected ? <Ionicons name="checkmark" size={15} color={colors.onBrand} /> : null}
+      </View>
+    </Pressable>
+  );
+}
+
 export function FilterBottomSheet({
   visible, onClose, selectedType, onSelectType, selectedCountry, onSelectCountry, countries, onApply
 }: FilterBottomSheetProps) {
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View className="flex-1 bg-black/40 justify-end">
-        <View className="bg-surface dark:bg-surface-dark rounded-t-3xl p-6 max-h-[80%]">
-          <View className="w-10 h-1 bg-border dark:bg-border-dark rounded-full self-center mb-6" />
-
-          <View className="flex-row justify-between items-center mb-6">
-            <ThemedText variant="heading" className="text-text dark:text-text-dark">Filters</ThemedText>
-            <TouchableOpacity onPress={onClose} hitSlop={10}>
-              <Ionicons name="close" size={22} color="#64748b" />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView showsVerticalScrollIndicator={false}>
-            <ThemedText variant="caption" className="mb-3 text-text-muted dark:text-text-muted-dark">Institution type</ThemedText>
-            <View className="flex-row flex-wrap gap-2 mb-7">
-              {TYPES.map(t => (
-                <TouchableOpacity
-                  key={t.value}
-                  onPress={() => { haptics.light(); onSelectType(t.value); }}
-                  className={`px-4 py-2.5 rounded-xl border ${selectedType === t.value ? 'bg-accent-start/10 border-accent-start' : 'bg-transparent border-border dark:border-border-dark'}`}
-                >
-                  <ThemedText variant="caption" className={selectedType === t.value ? 'text-accent-start font-semibold' : 'text-text dark:text-text-dark'}>
-                    {t.label}
-                  </ThemedText>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <ThemedText variant="caption" className="mb-3 text-text-muted dark:text-text-muted-dark">Country</ThemedText>
-            <View className="gap-2 mb-8">
-              <TouchableOpacity
-                onPress={() => { haptics.light(); onSelectCountry('all'); }}
-                className={`p-4 rounded-xl border flex-row justify-between items-center ${selectedCountry === 'all' ? 'bg-accent-start/10 border-accent-start' : 'border-border dark:border-border-dark'}`}
-              >
-                <ThemedText variant="body" className={selectedCountry === 'all' ? 'text-accent-start font-semibold' : 'text-text dark:text-text-dark'}>All countries</ThemedText>
-                {selectedCountry === 'all' && <Ionicons name="checkmark" size={20} color="#4f46e5" />}
-              </TouchableOpacity>
-              {countries.map(c => (
-                <TouchableOpacity
-                  key={c}
-                  onPress={() => { haptics.light(); onSelectCountry(c); }}
-                  className={`p-4 rounded-xl border flex-row justify-between items-center ${selectedCountry === c ? 'bg-accent-start/10 border-accent-start' : 'border-border dark:border-border-dark'}`}
-                >
-                  <ThemedText variant="body" className={selectedCountry === c ? 'text-accent-start font-semibold' : 'text-text dark:text-text-dark'}>{c}</ThemedText>
-                  {selectedCountry === c && <Ionicons name="checkmark" size={20} color="#4f46e5" />}
-                </TouchableOpacity>
-              ))}
-            </View>
-          </ScrollView>
-
-          <TouchableOpacity
-            onPress={() => { haptics.medium(); onApply(); }}
-            className="bg-accent-start py-4 rounded-2xl items-center"
-          >
-            <ThemedText variant="body" className="text-white font-semibold">Apply filters</ThemedText>
-          </TouchableOpacity>
-        </View>
+    <Sheet
+      visible={visible}
+      onClose={onClose}
+      title="Filters"
+      scroll
+      footer={
+        <Button
+          title="Apply filters"
+          onPress={() => { haptics.medium(); onApply(); }}
+        />
+      }
+    >
+      <AppText variant="label" tone="secondary" style={{ marginBottom: 12 }}>Institution type</AppText>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 28 }}>
+        {TYPES.map((t) => (
+          <Chip
+            key={t.value}
+            label={t.label}
+            selected={selectedType === t.value}
+            onPress={() => { haptics.light(); onSelectType(t.value); }}
+          />
+        ))}
       </View>
-    </Modal>
+
+      <AppText variant="label" tone="secondary" style={{ marginBottom: 12 }}>Country</AppText>
+      <View style={{ gap: 8, marginBottom: 8 }} accessibilityRole="radiogroup">
+        <OptionRow
+          label="All countries"
+          selected={selectedCountry === 'all'}
+          onPress={() => { haptics.light(); onSelectCountry('all'); }}
+        />
+        {countries.map((c) => (
+          <OptionRow
+            key={c}
+            label={c}
+            selected={selectedCountry === c}
+            onPress={() => { haptics.light(); onSelectCountry(c); }}
+          />
+        ))}
+      </View>
+    </Sheet>
   );
 }

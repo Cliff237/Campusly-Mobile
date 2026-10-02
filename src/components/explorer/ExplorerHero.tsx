@@ -1,11 +1,21 @@
 // src/components/explorer/ExplorerHero.tsx
-import { View, TouchableOpacity, Image, Share } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
-import { ThemedText } from '@/ui/ThemedText';
-import { GradientButton } from '@/ui/GradientButton';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Pressable, Share, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { formatCount } from '@/components/discover/roles';
 import { haptics } from '@/lib/haptics';
 import type { Institution } from '@/lib/types/explorer';
+import { CATEGORY_LABELS } from '@/lib/types/explorer';
+import { AppText } from '@/ui/AppText';
+import { HeroBackdrop } from '@/ui/brand/HeroBackdrop';
+import { CircleButton } from '@/ui/CircleButton';
+import { InstitutionMark } from '@/ui/InstitutionMark';
+import { COLUMN } from '@/ui/layout';
+import { palette } from '@/ui/tokens';
+import { useAppTheme } from '@/ui/useAppTheme';
 
 interface ExplorerHeroProps {
   institution: Institution;
@@ -13,9 +23,33 @@ interface ExplorerHeroProps {
   onFollow: () => void;
 }
 
+/** Translucent label on the violet hero. */
+function HeroPill({ icon, label }: { icon?: keyof typeof Ionicons.glyphMap; label: string }) {
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+        height: 30,
+        paddingHorizontal: 12,
+        borderRadius: 15,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.22)',
+        backgroundColor: 'rgba(255,255,255,0.12)',
+      }}
+    >
+      {icon ? <Ionicons name={icon} size={14} color="#FFFFFF" /> : null}
+      <AppText weight="semibold" color="#FFFFFF" numberOfLines={1} style={{ fontSize: 13, lineHeight: 18 }}>
+        {label}
+      </AppText>
+    </View>
+  );
+}
+
 export function ExplorerHero({ institution, isFollowing, onFollow }: ExplorerHeroProps) {
-  const brandColor = institution.brand_color || '#4f46e5';
-  const initials = institution.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+  const { colors, shadow } = useAppTheme();
+  const insets = useSafeAreaInsets();
 
   const handleShare = async () => {
     haptics.light();
@@ -36,65 +70,133 @@ export function ExplorerHero({ institution, isFollowing, onFollow }: ExplorerHer
     }
   };
 
+  const stats = [
+    typeof institution.follower_count === 'number' ? { label: 'Followers', value: formatCount(institution.follower_count) } : null,
+    typeof institution.public_post_count === 'number' ? { label: 'Posts', value: formatCount(institution.public_post_count) } : null,
+    typeof institution.student_count === 'number' ? { label: 'Students', value: formatCount(institution.student_count) } : null,
+  ].filter((s): s is { label: string; value: string } => s !== null);
+
   return (
-    <View className="relative">
-      {/* Gradient Background */}
-      <View 
-        className="absolute inset-0" 
-        style={{ backgroundColor: `${brandColor}15` }} // 15 = ~10% opacity hex
-      />
-      
-      <View className="p-6 pt-8 items-center">
-        {/* Logo / Initials */}
-        <View 
-          className="w-24 h-24 rounded-3xl items-center justify-center mb-4 shadow-lg border-4 border-surface dark:border-bg-dark"
-          style={{ backgroundColor: institution.logo_url ? 'transparent' : brandColor }}
-        >
-          {institution.logo_url ? (
-            <Image source={{ uri: institution.logo_url }} className="w-full h-full rounded-2xl" resizeMode="cover" />
-          ) : (
-            <ThemedText variant="display" className="text-white text-3xl">{initials}</ThemedText>
-          )}
-        </View>
+    <View>
+      <View style={{ overflow: 'hidden', borderBottomLeftRadius: 28, borderBottomRightRadius: 28 }}>
+        <LinearGradient
+          colors={colors.heroGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+        <HeroBackdrop variant="tab" topInset={insets.top} visibleHeight={260} bottomClearance={40} />
 
-        {/* Name & Meta */}
-        <ThemedText variant="heading" className="text-center text-text dark:text-text-dark mb-1" numberOfLines={2}>
-          {institution.name}
-        </ThemedText>
-        <View className="flex-row items-center gap-1.5 mb-4">
-          <Ionicons name="location" size={14} color="#64748b" />
-          <ThemedText variant="muted" className="text-sm">{institution.city}, {institution.region}</ThemedText>
-        </View>
+        {/* top padding leaves room for the floating back button */}
+        <View style={{ paddingTop: insets.top + 68, paddingHorizontal: 20, paddingBottom: stats.length ? 58 : 28 }}>
+          <View style={COLUMN}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+              <View style={{ padding: 3, borderRadius: 28, backgroundColor: 'rgba(255,255,255,0.2)' }}>
+                <InstitutionMark
+                  name={institution.name}
+                  color={institution.brand_color}
+                  logoUrl={institution.logo_url}
+                  size={78}
+                  radius={25}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <AppText variant="heading" tone="hero" accessibilityRole="header" numberOfLines={3}>
+                  {institution.name}
+                </AppText>
+              </View>
+            </View>
 
-        {/* Action Buttons */}
-        <View className="flex-row gap-3 w-full justify-center mb-2">
-          <TouchableOpacity 
-            onPress={onFollow} 
-            className={`flex-1 flex-row items-center justify-center gap-2 py-3 rounded-2xl border ${isFollowing ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' : 'bg-surface dark:bg-surface-dark border-border dark:border-border-dark'}`}
-          >
-            <Ionicons name={isFollowing ? 'heart' : 'heart-outline'} size={20} color={isFollowing ? '#ef4444' : '#64748b'} />
-            <ThemedText variant="body" className={`font-semibold ${isFollowing ? 'text-red-500' : 'text-text dark:text-text-dark'}`}>
-              {isFollowing ? 'Following' : 'Follow'}
-            </ThemedText>
-          </TouchableOpacity>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 }}>
+              <HeroPill icon="location-outline" label={`${institution.city}, ${institution.region}`} />
+              <HeroPill label={CATEGORY_LABELS[institution.category] || institution.category} />
+            </View>
 
-          <TouchableOpacity 
-            onPress={handleShare}
-            className="w-14 h-14 items-center justify-center rounded-2xl bg-surface dark:bg-surface-dark border border-border dark:border-border-dark"
-          >
-            <Ionicons name="share-social-outline" size={22} color="#64748b" />
-          </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 20 }}>
+              <Pressable
+                onPress={onFollow}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isFollowing }}
+                accessibilityLabel={isFollowing ? 'Following. Tap to unfollow' : 'Follow'}
+                style={({ pressed }) => ({
+                  flex: 1,
+                  height: 50,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  borderRadius: 16,
+                  borderWidth: 1.5,
+                  borderColor: isFollowing ? 'rgba(255,255,255,0.4)' : '#FFFFFF',
+                  backgroundColor: isFollowing ? 'rgba(255,255,255,0.14)' : '#FFFFFF',
+                  opacity: pressed ? 0.85 : 1,
+                  transform: [{ scale: pressed ? 0.985 : 1 }],
+                })}
+              >
+                <Ionicons
+                  name={isFollowing ? 'heart' : 'heart-outline'}
+                  size={20}
+                  color={isFollowing ? palette.rose[400] : palette.violet[700]}
+                />
+                <AppText variant="button" color={isFollowing ? '#FFFFFF' : palette.violet[700]}>
+                  {isFollowing ? 'Following' : 'Follow'}
+                </AppText>
+              </Pressable>
 
-          {institution.website && (
-            <TouchableOpacity 
-              onPress={handleWebsite}
-              className="w-14 h-14 items-center justify-center rounded-2xl bg-surface dark:bg-surface-dark border border-border dark:border-border-dark"
-            >
-              <Ionicons name="globe-outline" size={22} color="#64748b" />
-            </TouchableOpacity>
-          )}
+              <CircleButton
+                icon="share-social-outline"
+                variant="glass"
+                size={50}
+                accessibilityLabel="Share this institution"
+                onPress={handleShare}
+              />
+              {institution.website ? (
+                <CircleButton
+                  icon="globe-outline"
+                  variant="glass"
+                  size={50}
+                  accessibilityLabel="Open website"
+                  onPress={handleWebsite}
+                />
+              ) : null}
+            </View>
+          </View>
         </View>
       </View>
+
+      {/* figures float over the lower edge of the hero */}
+      {stats.length > 0 ? (
+        <View style={[COLUMN, { paddingHorizontal: 20, marginTop: -34 }]}>
+          <View
+            style={{
+              flexDirection: 'row',
+              paddingVertical: 14,
+              borderRadius: 22,
+              borderWidth: 1,
+              borderColor: colors.border,
+              backgroundColor: colors.surface,
+              boxShadow: shadow.md,
+            }}
+          >
+            {stats.map((s, i) => (
+              <View
+                key={s.label}
+                accessible
+                accessibilityLabel={`${s.value} ${s.label}`}
+                style={{
+                  flex: 1,
+                  alignItems: 'center',
+                  borderLeftWidth: i === 0 ? 0 : 1,
+                  borderLeftColor: colors.border,
+                }}
+              >
+                <AppText variant="heading" style={{ fontSize: 20, lineHeight: 26 }}>{s.value}</AppText>
+                <AppText variant="caption" tone="muted">{s.label}</AppText>
+              </View>
+            ))}
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }

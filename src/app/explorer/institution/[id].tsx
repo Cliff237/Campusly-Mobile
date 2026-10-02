@@ -1,17 +1,31 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 // src/app/explorer/[id].tsx
-import { useState, useEffect, useCallback } from 'react';
-import { View, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
+import {
+  View,
+  ScrollView,
+  RefreshControl,
+  ActivityIndicator,
+  StyleSheet,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { useColorScheme } from 'nativewind';
+import { StatusBar } from 'expo-status-bar';
+import Animated, { FadeIn } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ExplorerHero } from '@/components/explorer/ExplorerHero';
 import { ExplorerAbout } from '@/components/explorer/ExplorerAbout';
 import { ExplorerFeed } from '@/components/explorer/ExplorerFeed';
 import { ExplorerPrograms } from '@/components/explorer/ExplorerPrograms';
+import { ExplorerTabs, type ExplorerSection } from '@/components/explorer/ExplorerTabs';
 import { OtpFab } from '@/components/discover/OtpFab'; // Reuse the OTP FAB
-import { ThemedText } from '@/ui/ThemedText';
+import { Button } from '@/ui/Button';
+import { CircleButton } from '@/ui/CircleButton';
+import { EmptyState } from '@/ui/EmptyState';
+import { COLUMN } from '@/ui/layout';
+import { useAppTheme } from '@/ui/useAppTheme';
 
 import { 
   fetchInstitutionProfile, 
@@ -24,12 +38,59 @@ import { showToast } from '@/ui/Toast';
 import { haptics } from '@/lib/haptics';
 import type { Institution, PublicPost, SchoolInfo } from '@/lib/types/explorer';
 
-type ExplorerSection = 'about' | 'feed' | 'programs';
+/** Height of the top bar content (the safe-area inset is added on top). */
+const BAR_CONTENT = 56;
+
+/**
+ * Floating top bar. Over the hero it is just a glass back button; once the hero has scrolled away it
+ * becomes a solid bar carrying the back button and the About / Feed / Programs tabs, so neither
+ * ever overlaps the page content.
+ */
+function TopBar({ scrolled, onHero, onBack, tabs }: { scrolled: boolean; onHero: boolean; onBack: () => void; tabs?: ReactNode }) {
+  const { colors, shadow } = useAppTheme();
+  const insets = useSafeAreaInsets();
+
+  // Over the hero: only the round button exists (nothing full-width that could swallow scrolling).
+  if (!scrolled) {
+    return (
+      <View style={{ position: 'absolute', top: insets.top + 6, left: 12, zIndex: 10 }}>
+        <CircleButton icon="arrow-back" variant={onHero ? 'glass' : 'surface'} accessibilityLabel="Back" onPress={onBack} />
+      </View>
+    );
+  }
+
+  return (
+    <Animated.View
+      entering={FadeIn.duration(160)}
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 10,
+        height: insets.top + BAR_CONTENT,
+        paddingTop: insets.top + 6,
+        paddingHorizontal: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        backgroundColor: colors.surface,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: colors.border,
+        boxShadow: shadow.sm,
+      }}
+    >
+      <CircleButton icon="arrow-back" variant="soft" accessibilityLabel="Back" onPress={onBack} />
+      {tabs ? <View style={{ flex: 1 }}>{tabs}</View> : null}
+    </Animated.View>
+  );
+}
 
 export default function ExplorerScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { colorScheme } = useColorScheme();
+  const { colors, isDark } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const { accessToken } = useAuth();
 
   const [institution, setInstitution] = useState<Institution | null>(null);
@@ -39,6 +100,11 @@ export default function ExplorerScreen() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // top-bar state (presentation only)
+  const [scrolled, setScrolled] = useState(false);
+  const [tabsTop, setTabsTop] = useState<number | null>(null);
+  const barHeight = insets.top + BAR_CONTENT;
 
   const loadData = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -105,53 +171,58 @@ export default function ExplorerScreen() {
     }
   };
 
+  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (tabsTop === null) return;
+    const next = e.nativeEvent.contentOffset.y >= tabsTop - barHeight;
+    if (next !== scrolled) setScrolled(next);
+  };
+
   if (loading && !refreshing) {
     return (
-      <View className={`flex-1 items-center justify-center ${colorScheme === 'dark' ? 'bg-bg-dark' : 'bg-bg'}`}>
-        <View className="w-12 h-12 rounded-full border-4 border-accent-start border-t-transparent animate-spin" />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+        <ActivityIndicator size="large" color={colors.brand} />
+        <TopBar scrolled={false} onHero={false} onBack={() => router.back()} />
       </View>
     );
   }
 
   if (error && !institution) {
     return (
-      <View className={`flex-1 items-center justify-center px-6 ${colorScheme === 'dark' ? 'bg-bg-dark' : 'bg-bg'}`}>
-        <Ionicons name="alert-circle-outline" size={48} color="#ef4444" />
-        <ThemedText variant="heading" className="text-center text-text dark:text-text-dark mt-4 mb-2">
-          Institution unavailable
-        </ThemedText>
-        <ThemedText variant="muted" className="text-center mb-6">
-          {error}
-        </ThemedText>
-        <TouchableOpacity onPress={() => loadData()} className="bg-accent-start px-6 py-3 rounded-xl">
-          <ThemedText variant="body" className="text-white font-semibold">Try again</ThemedText>
-        </TouchableOpacity>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+        <EmptyState
+          tone="danger"
+          icon="alert-circle-outline"
+          title="Institution unavailable"
+          message={error}
+          action={<Button title="Try again" size="md" fullWidth={false} onPress={() => loadData()} />}
+        />
+        <TopBar scrolled={false} onHero={false} onBack={() => router.back()} />
       </View>
     );
   }
 
   return (
-    <View className={`flex-1 ${colorScheme === 'dark' ? 'bg-bg-dark' : 'bg-bg'}`}>
-      <Stack.Screen 
-        options={{
-          headerShown: true,
-          headerTitle: '',
-          headerTransparent: true,
-          headerLeft: () => (
-            <TouchableOpacity 
-              onPress={() => router.back()} 
-              className="w-10 h-10 rounded-full bg-surface/80 dark:bg-surface-dark/80 items-center justify-center ml-2 backdrop-blur-md"
-            >
-              <Ionicons name="arrow-back" size={22} color={colorScheme === 'dark' ? '#f8fafc' : '#0f172a'} />
-            </TouchableOpacity>
-          ),
-        }} 
-      />
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <StatusBar style={scrolled && !isDark ? 'dark' : 'light'} />
 
-      <ScrollView 
-        className="flex-1"
-        stickyHeaderIndices={[1]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor="#4f46e5" />}
+      <ScrollView
+        style={{ flex: 1 }}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => loadData(true)}
+            tintColor={colors.brand}
+            colors={[colors.brand]}
+            progressBackgroundColor={colors.surface}
+          />
+        }
         showsVerticalScrollIndicator={false}
       >
         {institution && (
@@ -162,24 +233,13 @@ export default function ExplorerScreen() {
               onFollow={handleFollow}
             />
 
-            <View className="flex-row border-b border-border bg-bg dark:border-border-dark dark:bg-bg-dark">
-              {(['about', 'feed', 'programs'] as const).map((item) => (
-                <TouchableOpacity
-                  key={item}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: section === item }}
-                  onPress={() => { haptics.light(); setSection(item); }}
-                  className="flex-1 items-center py-4"
-                >
-                  <ThemedText
-                    variant="caption"
-                    className={section === item ? 'text-accent-start font-semibold' : 'text-text-muted dark:text-text-muted-dark'}
-                  >
-                    {item[0].toUpperCase() + item.slice(1)}
-                  </ThemedText>
-                  {section === item && <View className="absolute bottom-0 h-0.5 w-12 bg-accent-start" />}
-                </TouchableOpacity>
-              ))}
+            <View
+              onLayout={(e) => setTabsTop(e.nativeEvent.layout.y)}
+              style={{ marginTop: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}
+            >
+              <View style={[COLUMN, { paddingHorizontal: 8 }]}>
+                <ExplorerTabs section={section} onChange={setSection} />
+              </View>
             </View>
 
             {section === 'about' && (
@@ -197,8 +257,15 @@ export default function ExplorerScreen() {
         )}
       </ScrollView>
 
+      <TopBar
+        scrolled={scrolled}
+        onHero
+        onBack={() => router.back()}
+        tabs={<ExplorerTabs compact section={section} onChange={setSection} />}
+      />
+
       {/* Persistent OTP CTA at the bottom */}
-      <OtpFab onRedeemSuccess={() => { /* Optionally refresh or show success state */ }} />
+      <OtpFab bottomOffset={16 + insets.bottom} onRedeemSuccess={() => { /* Optionally refresh or show success state */ }} />
     </View>
   );
 }

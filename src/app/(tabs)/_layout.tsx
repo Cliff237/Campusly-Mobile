@@ -1,60 +1,22 @@
 import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { useColorScheme } from 'nativewind';
+import { tabIcon, useTabBarOptions } from '@/ui/tabBarOptions';
 
 export default function TabLayout() {
-  const { colorScheme } = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  const activeColor = '#5b3fd1';
-  const inactiveColor = isDark ? '#64748b' : '#94a3b8';
+  const options = useTabBarOptions();
 
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: isDark ? '#1e293b' : '#ffffff',
-          borderTopColor: isDark ? '#334155' : '#e2e8f0',
-          paddingBottom: 8,
-          paddingTop: 8,
-          height: 85,
-        },
-        tabBarActiveTintColor: activeColor,
-        tabBarInactiveTintColor: inactiveColor,
-        tabBarLabelStyle: {
-          fontFamily: 'Inter',
-          fontSize: 12,
-          fontWeight: '600',
-          marginTop: 4,
-        },
-      }}
-    >
+    <Tabs screenOptions={options}>
       <Tabs.Screen
         name="discover"
-        options={{
-          title: 'Discover',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="compass" size={size} color={color} />
-          ),
-        }}
+        options={{ title: 'Discover', tabBarIcon: tabIcon('compass', 'compass-outline') }}
       />
       <Tabs.Screen
         name="notifications"
-        options={{
-          title: 'Alerts',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="notifications-outline" size={size} color={color} />
-          ),
-        }}
+        options={{ title: 'Alerts', tabBarIcon: tabIcon('notifications', 'notifications-outline') }}
       />
       <Tabs.Screen
         name="profile"
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={size} color={color} />
-          ),
-        }}
+        options={{ title: 'Profile', tabBarIcon: tabIcon('person', 'person-outline') }}
       />
     </Tabs>
   );

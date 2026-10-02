@@ -1,21 +1,28 @@
 import { View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
-import { ThemedText } from '@/ui/ThemedText';
+
+import { EmptyState } from '@/ui/EmptyState';
+import { COLUMN } from '@/ui/layout';
+import { useAppTheme } from '@/ui/useAppTheme';
 
 export function ExplorerPrograms() {
+  const { colors } = useAppTheme();
+
   return (
-    <Animated.View entering={FadeInDown.duration(350)} className="px-5 py-10">
-      <View className="rounded-3xl bg-accent-start/10 dark:bg-accent-start/20 px-6 py-10 items-center">
-        <View className="w-16 h-16 rounded-2xl bg-accent-start/15 items-center justify-center mb-4">
-          <Ionicons name="library-outline" size={32} color="#4f46e5" />
-        </View>
-        <ThemedText variant="subheading" className="text-center text-text dark:text-text-dark mb-2">
-          Programs coming soon
-        </ThemedText>
-        <ThemedText variant="muted" className="text-center">
-          Course and program information will appear here when this institution publishes it.
-        </ThemedText>
+    <Animated.View entering={FadeInDown.duration(350)} style={[COLUMN, { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 120 }]}>
+      <View
+        style={{
+          borderRadius: 24,
+          borderWidth: 1,
+          borderColor: colors.border,
+          backgroundColor: colors.surface,
+        }}
+      >
+        <EmptyState
+          icon="library-outline"
+          title="Programs coming soon"
+          message="Course and program information will appear here when this institution publishes it."
+        />
       </View>
     </Animated.View>
   );

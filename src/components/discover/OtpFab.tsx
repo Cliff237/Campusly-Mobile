@@ -1,18 +1,68 @@
-import { useState } from 'react';
-import { View, TouchableOpacity, Modal, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { ThemedText } from '@/ui/ThemedText';
-import { GradientButton } from '@/ui/GradientButton';
+import { useState } from 'react';
+import { View } from 'react-native';
+
 import { haptics } from '@/lib/haptics';
 import { previewMembershipOtp, redeemMembershipOtp } from '@/lib/api/discover/memberships';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { AppText } from '@/ui/AppText';
+import { Button } from '@/ui/Button';
+import { CodeInput } from '@/ui/CodeInput';
+import { Sheet } from '@/ui/Sheet';
+import { Tag } from '@/ui/Tag';
 import { showToast } from '@/ui/Toast';
+import { useAppTheme } from '@/ui/useAppTheme';
 
 interface OtpFabProps {
   onRedeemSuccess: () => void;
+  /** Distance from the bottom of the screen. Screens with a tab bar use the default; full-screen pages add the safe-area inset. */
+  bottomOffset?: number;
 }
 
-export function OtpFab({ onRedeemSuccess }: OtpFabProps) {
+/** "Guardian" for "guardian", "School admin" for "school_admin". */
+function roleLabel(role: unknown): string {
+  const s = String(role ?? '').replace(/_/g, ' ');
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function IconTile({ name, tone }: { name: keyof typeof Ionicons.glyphMap; tone: 'brand' | 'success' }) {
+  const { colors } = useAppTheme();
+  return (
+    <View
+      style={{
+        width: 72,
+        height: 72,
+        borderRadius: 36,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: tone === 'brand' ? colors.brandSoft : colors.successSoft,
+      }}
+    >
+      <Ionicons name={name} size={34} color={tone === 'brand' ? colors.brand : colors.success} />
+    </View>
+  );
+}
+
+function SummaryRow({ label, children, last }: { label: string; children: React.ReactNode; last?: boolean }) {
+  const { colors } = useAppTheme();
+  return (
+    <View
+      style={{
+        paddingVertical: 12,
+        borderBottomWidth: last ? 0 : 1,
+        borderBottomColor: colors.border,
+      }}
+    >
+      <AppText variant="caption" tone="muted" style={{ marginBottom: 3 }}>
+        {label}
+      </AppText>
+      {children}
+    </View>
+  );
+}
+
+export function OtpFab({ onRedeemSuccess, bottomOffset = 16 }: OtpFabProps) {
+  const { colors } = useAppTheme();
   const [visible, setVisible] = useState(false);
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -55,86 +105,71 @@ export function OtpFab({ onRedeemSuccess }: OtpFabProps) {
     }
   };
 
+  const close = () => { setVisible(false); setPreview(null); setCode(''); };
+
   return (
     <>
-      <TouchableOpacity
-        activeOpacity={0.8}
+      <Button
+        title="Enter code"
+        leftIcon="ticket-outline"
+        fullWidth={false}
+        accessibilityLabel="Enter your institution code"
         onPress={() => { haptics.light(); setVisible(true); }}
-        className="absolute bottom-24 right-5 w-16 h-16 rounded-full items-center justify-center shadow-xl z-20"
-        style={{
-          backgroundColor: '#4f46e5',
-          shadowColor: '#4f46e5',
-          shadowOffset: { width: 0, height: 6 },
-          shadowOpacity: 0.4,
-          shadowRadius: 12,
-          elevation: 8,
-        }}
-      >
-        <Ionicons name="ticket-outline" size={28} color="#ffffff" />
-      </TouchableOpacity>
+        style={{ position: 'absolute', right: 16, bottom: bottomOffset, zIndex: 20, minHeight: 52, borderRadius: 26, paddingHorizontal: 20 }}
+      />
 
-      <Modal visible={visible} animationType="slide" transparent>
-        <View className="flex-1 bg-black/50 justify-center px-6">
-          <View className="bg-surface dark:bg-surface-dark rounded-3xl p-6 shadow-2xl border border-border dark:border-border-dark">
-            {!preview ? (
-              <>
-                <View className="items-center mb-6">
-                  <View className="w-16 h-16 rounded-full bg-accent-start/10 items-center justify-center mb-4">
-                    <Ionicons name="ticket" size={32} color="#4f46e5" />
-                  </View>
-                  <ThemedText variant="heading" className="text-center text-text dark:text-text-dark">Redeem OTP</ThemedText>
-                  <ThemedText variant="muted" className="text-center mt-2">Enter the 6-digit code provided by your institution.</ThemedText>
-                </View>
-                <TextInput
-                  value={code}
-                  onChangeText={setCode}
-                  keyboardType="number-pad"
-                  maxLength={6}
-                  placeholder="000000"
-                  className="bg-surface-hover dark:bg-surface-hover-dark text-center text-3xl font-bold text-text dark:text-text-dark rounded-2xl py-4 mb-6 tracking-widest border border-border dark:border-border-dark"
-                />
-                <GradientButton title="Check Code" onPress={handlePreview} loading={loading} />
-              </>
-            ) : (
-              <>
-                <View className="items-center mb-6">
-                  <View className="w-16 h-16 rounded-full bg-green-500/10 items-center justify-center mb-4">
-                    <Ionicons name="checkmark-circle" size={32} color="#10b981" />
-                  </View>
-                  <ThemedText variant="heading" className="text-center text-text dark:text-text-dark">Confirm Enrollment</ThemedText>
-                </View>
-                <View className="bg-surface-hover dark:bg-surface-hover-dark rounded-2xl p-4 mb-6 gap-3">
-                  <View className="flex-row justify-between">
-                    <ThemedText variant="muted">Institution:</ThemedText>
-                    <ThemedText variant="body" className="font-semibold text-text dark:text-text-dark text-right">{preview.institution_name}</ThemedText>
-                  </View>
-                  {preview.student_name && (
-                    <View className="flex-row justify-between">
-                      <ThemedText variant="muted">Student:</ThemedText>
-                      <ThemedText variant="body" className="font-semibold text-text dark:text-text-dark text-right">{preview.student_name}</ThemedText>
-                    </View>
-                  )}
-                  <View className="flex-row justify-between">
-                    <ThemedText variant="muted">Role:</ThemedText>
-                    <ThemedText variant="body" className="font-semibold text-accent-start capitalize text-right">{preview.role}</ThemedText>
-                  </View>
-                </View>
-                <View className="flex-row gap-3">
-                  <TouchableOpacity onPress={() => { setPreview(null); setCode(''); }} className="flex-1 bg-surface-hover dark:bg-surface-hover-dark py-4 rounded-2xl items-center">
-                    <ThemedText variant="body" className="text-text-muted dark:text-text-muted-dark font-semibold">Back</ThemedText>
-                  </TouchableOpacity>
-                  <View className="flex-1">
-                    <GradientButton title="Confirm" onPress={handleRedeem} loading={loading} />
-                  </View>
-                </View>
-              </>
-            )}
-            <TouchableOpacity onPress={() => { setVisible(false); setPreview(null); setCode(''); }} className="mt-4 items-center">
-              <ThemedText variant="muted">Cancel</ThemedText>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      <Sheet visible={visible} onClose={close}>
+        {!preview ? (
+          <>
+            <View style={{ alignItems: 'center', marginBottom: 24 }}>
+              <IconTile name="ticket" tone="brand" />
+              <AppText variant="heading" align="center" style={{ marginTop: 16 }}>Redeem OTP</AppText>
+              <AppText tone="muted" align="center" style={{ marginTop: 6 }}>
+                Enter the 6-digit code provided by your institution.
+              </AppText>
+            </View>
+            <CodeInput value={code} onChangeText={setCode} length={6} accessibilityLabel="Institution code" />
+            <Button title="Check code" onPress={handlePreview} loading={loading} style={{ marginTop: 24 }} />
+          </>
+        ) : (
+          <>
+            <View style={{ alignItems: 'center', marginBottom: 20 }}>
+              <IconTile name="checkmark-circle" tone="success" />
+              <AppText variant="heading" align="center" style={{ marginTop: 16 }}>Confirm enrollment</AppText>
+            </View>
+            <View
+              style={{
+                paddingHorizontal: 16,
+                borderRadius: 20,
+                borderWidth: 1,
+                borderColor: colors.border,
+                backgroundColor: colors.field,
+              }}
+            >
+              <SummaryRow label="Institution">
+                <AppText weight="bold" style={{ fontSize: 16, lineHeight: 22 }}>{preview.institution_name}</AppText>
+              </SummaryRow>
+              {preview.student_name ? (
+                <SummaryRow label="Student">
+                  <AppText weight="bold" style={{ fontSize: 16, lineHeight: 22 }}>{preview.student_name}</AppText>
+                </SummaryRow>
+              ) : null}
+              <SummaryRow label="Role" last>
+                <Tag tone="brand" label={roleLabel(preview.role)} style={{ marginTop: 2 }} />
+              </SummaryRow>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 12, marginTop: 24 }}>
+              <View style={{ flex: 1 }}>
+                <Button title="Back" variant="outline" onPress={() => { setPreview(null); setCode(''); }} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Button title="Confirm" onPress={handleRedeem} loading={loading} />
+              </View>
+            </View>
+          </>
+        )}
+        <Button title="Cancel" variant="ghost" size="md" onPress={close} style={{ marginTop: 8 }} />
+      </Sheet>
     </>
   );
 }

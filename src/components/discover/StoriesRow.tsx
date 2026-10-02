@@ -1,71 +1,111 @@
-// components/discover/StoriesRow.tsx
-import { View, ScrollView, TouchableOpacity, Image } from 'react-native';
+// components/discover/StoriesRow.tsx — "Your campuses"
 import { Ionicons } from '@expo/vector-icons';
-import { ThemedText } from '@/ui/ThemedText';
-import type { Membership } from '@/lib/api/discover/memberships';
+import { Pressable, ScrollView, View } from 'react-native';
+
 import { haptics } from '@/lib/haptics';
+import type { Membership } from '@/lib/api/discover/memberships';
+import { AppText } from '@/ui/AppText';
+import { InstitutionMark } from '@/ui/InstitutionMark';
+import { Tag } from '@/ui/Tag';
+import { safeColor } from '@/ui/color';
+import { COLUMN, useColumnInset } from '@/ui/layout';
+import { palette } from '@/ui/tokens';
+import { useAppTheme } from '@/ui/useAppTheme';
+import { ACTOR_LABELS, ROLE_ICONS } from './roles';
 
 interface StoriesRowProps {
   memberships: Membership[];
   onPress: (membership: Membership) => void;
 }
 
-const ROLE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
-  student: 'school',
-  teacher: 'briefcase',
-  staff: 'business',
-  school_admin: 'star',
-  guardian: 'heart',
-};
+function CampusCard({ m, onPress, wide }: { m: Membership; onPress: (m: Membership) => void; wide: boolean }) {
+  const { colors, shadow } = useAppTheme();
+  const accent = safeColor(m.institution_brand_color, palette.violet[600]);
+  const role = ACTOR_LABELS[m.base_actor] || m.base_actor;
+  const icon = ROLE_ICONS[m.base_actor] || 'person';
+
+  return (
+    <Pressable
+      onPress={() => {
+        haptics.light();
+        onPress(m);
+      }}
+      accessibilityRole="button"
+      accessibilityLabel={`${m.institution_name}, ${role}`}
+      style={({ pressed }) => ({
+        width: wide ? '100%' : 168,
+        borderRadius: 22,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: pressed ? colors.brandSoft : colors.surface,
+        padding: 14,
+        boxShadow: shadow.sm,
+        transform: [{ scale: pressed ? 0.985 : 1 }],
+      })}
+    >
+      {wide ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+          <InstitutionMark name={m.institution_name} color={m.institution_brand_color} logoUrl={m.institution_logo_url} size={52} />
+          <View style={{ flex: 1, gap: 8 }}>
+            <AppText variant="label" weight="bold" numberOfLines={2} style={{ fontSize: 15, lineHeight: 20 }}>
+              {m.institution_name}
+            </AppText>
+            <Tag accent={accent} icon={icon} label={role} />
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.textSubtle} />
+        </View>
+      ) : (
+        <View>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+            <InstitutionMark name={m.institution_name} color={m.institution_brand_color} logoUrl={m.institution_logo_url} size={48} />
+            <View
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 14,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: colors.surfaceMuted,
+              }}
+            >
+              <Ionicons name="arrow-forward" size={15} color={colors.textMuted} />
+            </View>
+          </View>
+          <AppText
+            variant="label"
+            weight="bold"
+            numberOfLines={2}
+            style={{ marginTop: 12, minHeight: 38, fontSize: 14, lineHeight: 19 }}
+          >
+            {m.institution_name}
+          </AppText>
+          <Tag accent={accent} icon={icon} label={role} style={{ marginTop: 8 }} />
+        </View>
+      )}
+    </Pressable>
+  );
+}
 
 export function StoriesRow({ memberships, onPress }: StoriesRowProps) {
+  const inset = useColumnInset();
+
+  if (memberships.length === 1) {
+    return (
+      <View style={[COLUMN, { paddingHorizontal: 20 }]}>
+        <CampusCard m={memberships[0]} onPress={onPress} wide />
+      </View>
+    );
+  }
+
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ paddingLeft: 20, paddingRight: 4, gap: 18 }}
+      contentContainerStyle={{ paddingHorizontal: inset, paddingVertical: 4, gap: 12 }}
     >
-      {memberships.map((m) => {
-        const brandColor = m.institution_brand_color || '#4f46e5';
-        const initials = m.institution_name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
-        const roleIcon = ROLE_ICONS[m.base_actor] || 'person';
-
-        return (
-          <TouchableOpacity
-            key={m.membership_id}
-            activeOpacity={0.8}
-            onPress={() => { haptics.light(); onPress(m); }}
-            className="items-center"
-            style={{ width: 68 }}
-          >
-            <View className="relative">
-              <View
-                className="w-16 h-16 rounded-full items-center justify-center"
-                style={{ borderWidth: 2, borderColor: brandColor }}
-              >
-                <View className="w-[54px] h-[54px] rounded-full items-center justify-center overflow-hidden bg-surface-hover dark:bg-surface-hover-dark">
-                  {m.institution_logo_url ? (
-                    <Image source={{ uri: m.institution_logo_url }} className="w-full h-full" resizeMode="cover" />
-                  ) : (
-                    <ThemedText variant="body" className="text-text dark:text-text-dark font-semibold">
-                      {initials}
-                    </ThemedText>
-                  )}
-                </View>
-              </View>
-              <View
-                className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full items-center justify-center border-2 border-bg dark:border-bg-dark"
-                style={{ backgroundColor: brandColor }}
-              >
-                <Ionicons name={roleIcon} size={10} color="#ffffff" />
-              </View>
-            </View>
-            <ThemedText variant="tiny" className="text-center text-text dark:text-text-dark mt-1.5" numberOfLines={1}>
-              {m.institution_name.split(' ')[0]}
-            </ThemedText>
-          </TouchableOpacity>
-        );
-      })}
+      {memberships.map((m) => (
+        <CampusCard key={m.membership_id} m={m} onPress={onPress} wide={false} />
+      ))}
     </ScrollView>
   );
 }
