@@ -136,8 +136,7 @@ export default function ScheduleScreen() {
       console.log('[Schedule] Starting scanForAttendance');
       cleanup = await scanForAttendance((device) => {
         console.log('[Schedule] Device detected in scan');
-        const candidate = device as { rssi?: number; RSSI?: number };
-        void finish(candidate.rssi ?? candidate.RSSI);
+        void finish(device.rssi);
       });
       scanCleanup.current = cleanup;
       

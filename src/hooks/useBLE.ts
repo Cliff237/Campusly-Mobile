@@ -1,12 +1,15 @@
-import { useCallback, useEffect } from 'react';
-import { AppState } from 'react-native';
+import { useCallback, useEffect, useRef } from 'react';
+import { AppState, Platform } from 'react-native';
+import { Device } from 'react-native-ble-plx';
 import { checkInToSession } from '@/lib/api/attendance';
 import { flushPendingCheckins, getDeviceIdentifier } from '@/lib/api/ble';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { requestBluetoothAccess, startAttendanceBeacon, startAttendanceScan, stopAttendanceBeacon, stopAttendanceScan } from '@/lib/nativeBle';
+import { requestBluetoothPermissions, requestBluetoothAdvertisingPermissions, ensureBluetoothEnabled, BleScannerService, ATTENDANCE_SERVICE_UUID } from '@/lib/bleScanner';
+import { startAttendanceBeacon, stopAttendanceBeacon } from '@/lib/nativeBle';
 
 export function useBLE() {
   const { accessToken } = useAuth();
+  const bleScannerServiceRef = useRef<BleScannerService | null>(null);
 
   const flush = useCallback(async () => {
     if (!accessToken) return 0;
@@ -37,11 +40,68 @@ export function useBLE() {
     [accessToken],
   );
 
-  const prepareBluetooth = useCallback(() => requestBluetoothAccess(), []);
-  const startBeacon = useCallback((sessionCode: string) => startAttendanceBeacon(sessionCode), []);
-  const stopBeacon = useCallback(() => stopAttendanceBeacon(), []);
-  const scanForAttendance = useCallback((onDeviceFound: (device: unknown) => void) => startAttendanceScan(onDeviceFound), []);
-  const stopScan = useCallback(() => stopAttendanceScan(), []);
+  const prepareBluetooth = useCallback(async () => {
+    const hasPermissions = await requestBluetoothPermissions();
+    if (!hasPermissions) {
+      throw new Error('Bluetooth permissions not granted');
+    }
+  }, []);
 
-  return { markPresent, flush, prepareBluetooth, startBeacon, stopBeacon, scanForAttendance, stopScan };
+  const prepareBluetoothForAdvertising = useCallback(async () => {
+    const hasPermissions = await requestBluetoothAdvertisingPermissions();
+    if (!hasPermissions) {
+      throw new Error('Bluetooth advertising permissions not granted');
+    }
+  }, []);
+
+  const startBeacon = useCallback((sessionCode: string) => {
+    if (Platform.OS === 'web') {
+      console.warn('[useBLE] Beacon broadcasting is not supported on web');
+      return Promise.resolve();
+    }
+    return startAttendanceBeacon(sessionCode);
+  }, []);
+
+  const stopBeacon = useCallback(() => {
+    if (Platform.OS === 'web') {
+      console.warn('[useBLE] Beacon broadcasting is not supported on web');
+      return Promise.resolve();
+    }
+    return stopAttendanceBeacon();
+  }, []);
+
+  const scanForAttendance = useCallback(
+    (onDeviceFound: (device: Device) => void): Promise<() => void> => {
+      return new Promise((resolve, reject) => {
+        if (!bleScannerServiceRef.current) {
+          bleScannerServiceRef.current = new BleScannerService();
+        }
+
+        const service = bleScannerServiceRef.current;
+
+        service.startScan(
+          onDeviceFound,
+          (error) => reject(error),
+          ATTENDANCE_SERVICE_UUID,
+          12000 // 12 seconds scan
+        ).then(() => {
+          resolve(() => service.stopScan());
+        }).catch(reject);
+      });
+    },
+    []
+  );
+
+  const stopScan = useCallback(() => {
+    bleScannerServiceRef.current?.stopScan();
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      bleScannerServiceRef.current?.destroy();
+    };
+  }, []);
+
+  return { markPresent, flush, prepareBluetooth, prepareBluetoothForAdvertising, startBeacon, stopBeacon, scanForAttendance, stopScan };
 }

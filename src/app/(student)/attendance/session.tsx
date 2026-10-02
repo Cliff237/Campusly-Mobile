@@ -101,7 +101,7 @@ export default function LiveAttendanceScreen() {
     [loading, setLoading] = useState(true),
     [query, setQuery] = useState(""),
     [closing, setClosing] = useState(false);
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const isPollingRef = useRef(false);
   const name = useMemo(() => {
     try {
       return decodeURIComponent(p.courseName || "Course");
@@ -109,43 +109,41 @@ export default function LiveAttendanceScreen() {
       return p.courseName || "Course";
     }
   }, [p.courseName]);
-  const load = useCallback(async (showLoading = false) => {
+  const load = useCallback(async (isInitialLoad = false) => {
     if (!accessToken || !p.classId) return;
-    if (showLoading) setLoading(true);
+    if (isInitialLoad) setLoading(true);
     try {
       console.log("[Attendance] Loading live roster", {
         sessionId: p.sessionId,
         classId: p.classId,
+        isInitialLoad,
       });
       setRoster(await fetchAttendanceRoster(p.classId, accessToken, p.sessionId));
     } catch (e) {
       console.error("[Attendance] Roster load failed", e);
-      showToast.error(
-        "Roster unavailable",
-        e instanceof Error ? e.message : "Could not load class roster",
-      );
+      if (isInitialLoad) {
+        showToast.error(
+          "Roster unavailable",
+          e instanceof Error ? e.message : "Could not load class roster",
+        );
+      }
     } finally {
-      if (showLoading) setLoading(false);
+      if (isInitialLoad) setLoading(false);
     }
   }, [accessToken, p.classId, p.sessionId]);
   useEffect(() => {
-    void load();
+    void load(true);
   }, [load]);
 
-  // Poll for roster updates every 3 seconds to show real-time check-ins
+  // Poll for roster updates every 3 seconds (background refresh without loading spinner)
   useEffect(() => {
     if (!accessToken || !p.classId || closing) return;
     
-    pollingRef.current = setInterval(() => {
-      void load(false); // Don't show loading during polling
+    const interval = setInterval(() => {
+      void load(false); // Don't show loading spinner during polling
     }, 3000);
 
-    return () => {
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current);
-        pollingRef.current = null;
-      }
-    };
+    return () => clearInterval(interval);
   }, [accessToken, p.classId, closing, load]);
   useEffect(() => () => { void stopBeacon(); }, [stopBeacon]);
   const present = roster.filter((s) => s.status === "present").length,
@@ -175,7 +173,7 @@ export default function LiveAttendanceScreen() {
         accessToken,
       );
       haptics.selection();
-      // Reload roster to get the actual state from the server
+      // Reload roster without loading spinner
       void load(false);
     } catch (e) {
       console.error("[Attendance] Manual mark failed", e);
@@ -183,7 +181,7 @@ export default function LiveAttendanceScreen() {
         "Mark was not saved",
         e instanceof Error ? e.message : "Try again",
       );
-      void load();
+      void load(true);
     }
   };
   const finish = async () => {

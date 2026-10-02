@@ -78,7 +78,14 @@ export default {
       ],
       "@react-native-firebase/app",
       "expo-image",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "react-native-ble-plx",
+        {
+          "isBackgroundEnabled": false,
+          "logs": false
+        }
+      ]
     ],
     experiments: {
       typedRoutes: true,
