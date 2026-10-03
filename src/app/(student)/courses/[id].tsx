@@ -6,6 +6,7 @@ import { href } from '@/lib/href';
 import { ThemedText } from '@/ui/ThemedText';
 import { EmptyStateAnimation } from '@/ui/EmptyStateAnimation';
 import { showToast } from '@/ui/Toast';
+import { useModalPresence } from '@/ui/modalStore';
 import { PostComposer } from '@/components/student/home/PostComposer';
 import { PermissionGate } from '@/components/student/shared/PermissionGate';
 import { fetchInstitutionMemberPosts, fetchStudentDashboard, togglePostReaction } from '@/lib/api/student';
@@ -52,6 +53,7 @@ export default function CourseDetailScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  useModalPresence(menuOpen);
   const load = useCallback(async (refresh = false) => {
     if (!accessToken || !currentMembership || !id) return;
     setRefreshing(refresh);

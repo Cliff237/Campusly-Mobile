@@ -3,8 +3,11 @@ import { ActivityIndicator, BackHandler, RefreshControl, ScrollView, TouchableOp
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { ThemedText } from '@/ui/ThemedText';
-import { EmptyStateAnimation } from '@/ui/EmptyStateAnimation';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { AppText } from '@/ui/AppText';
+import { EmptyState } from '@/ui/EmptyState';
+import { useAppTheme } from '@/ui/useAppTheme';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { fetchTeacherClasses } from '@/lib/api/teacherMarks';
 import type { TeacherClass } from '@/lib/types/teacherMarks';
@@ -12,6 +15,7 @@ import type { TeacherClass } from '@/lib/types/teacherMarks';
 export default function TeacherDashboard() {
   const router = useRouter();
   const { accessToken, currentMembership } = useAuth();
+  const { colors, shadow, isDark } = useAppTheme();
   const [classes, setClasses] = useState<TeacherClass[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -45,69 +49,80 @@ export default function TeacherDashboard() {
   }, [router]));
 
   return (
-    <SafeAreaView className="flex-1 bg-bg dark:bg-bg-dark">
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView
         contentContainerStyle={{ padding: 20, paddingBottom: 44 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void loadClasses(true)} tintColor="#5b3fd1" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void loadClasses(true)} tintColor={colors.brand} />}
       >
-        <View className="flex-row items-start justify-between mb-7">
-          <View className="flex-1 pr-3">
-            <ThemedText variant="display">Teaching space</ThemedText>
-            <ThemedText variant="caption" className="text-text-muted dark:text-text-muted-dark mt-1">
-              {currentMembership?.institution_name || 'Your institution'}
-            </ThemedText>
+        {/* ── Header ── */}
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 22 }}>
+          <View style={{ flex: 1, paddingRight: 12 }}>
+            <AppText variant="display">Teaching space</AppText>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 6 }}>
+              <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.success }} />
+              <AppText variant="caption" tone="muted" weight="medium">{currentMembership?.institution_name || 'Your institution'}</AppText>
+            </View>
           </View>
-          <View className="w-12 h-12 rounded-2xl bg-primary-soft items-center justify-center">
-            <Ionicons name="briefcase-outline" size={23} color="#5b3fd1" />
-          </View>
+          <LinearGradient colors={colors.heroGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 50, height: 50, borderRadius: 18, alignItems: 'center', justifyContent: 'center', boxShadow: shadow.sm }}>
+            <Ionicons name="briefcase-outline" size={22} color="#FFFFFF" />
+          </LinearGradient>
         </View>
 
-        <View className="rounded-3xl bg-ink p-5 mb-6 overflow-hidden">
-          <View className="absolute w-32 h-32 rounded-full bg-white/10 -right-10 -top-8" />
-          <ThemedText variant="tiny" className="text-violet-soft font-semibold uppercase tracking-wider">Your teaching load</ThemedText>
-          <View className="flex-row items-end mt-2">
-            <ThemedText variant="display" className="text-white">{classes.length}</ThemedText>
-            <ThemedText variant="caption" className="text-violet-soft ml-2 mb-1">assigned class{classes.length === 1 ? '' : 'es'}</ThemedText>
-          </View>
-          <ThemedText variant="caption" className="text-violet-soft mt-3">Open a class to take attendance or manage its marks.</ThemedText>
-        </View>
+        {/* ── Teaching load — hero card ── */}
+        <Animated.View entering={FadeInDown.duration(320)} style={{ borderRadius: 26, marginBottom: 24, overflow: 'hidden', boxShadow: shadow.md }}>
+          <LinearGradient colors={colors.heroGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ padding: 20 }}>
+            <View style={{ position: 'absolute', width: 140, height: 140, borderRadius: 70, backgroundColor: 'rgba(255,255,255,0.08)', right: -34, top: -30 }} />
+            <AppText variant="caption" color="#CFC5FF" weight="bold" style={{ letterSpacing: 1.2 }}>YOUR TEACHING LOAD</AppText>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 6 }}>
+              <AppText variant="display" color="#FFFFFF" style={{ fontSize: 44, lineHeight: 48 }}>{classes.length}</AppText>
+              <AppText variant="caption" color="#CFC5FF" weight="semibold" style={{ marginLeft: 8, marginBottom: 7 }}>assigned class{classes.length === 1 ? '' : 'es'}</AppText>
+            </View>
+            <AppText variant="caption" color="#CFC5FF" style={{ marginTop: 8 }}>Open a class to take attendance or manage its marks.</AppText>
+          </LinearGradient>
+        </Animated.View>
 
-        <View className="flex-row items-center justify-between mb-3">
-          <ThemedText variant="subheading">My classes</ThemedText>
-          <TouchableOpacity onPress={() => router.push('/teacher/marks')} accessibilityRole="button" accessibilityLabel="Manage all marks">
-            <ThemedText variant="caption" className="text-primary font-semibold">Manage marks</ThemedText>
+        {/* ── My classes ── */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <AppText variant="subheading">My classes</AppText>
+          <TouchableOpacity onPress={() => router.push('/teacher/marks')} accessibilityRole="button" accessibilityLabel="Manage all marks" style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+            <AppText variant="caption" weight="bold" color={colors.brand}>Manage marks</AppText>
+            <Ionicons name="arrow-forward" size={13} color={colors.brand} />
           </TouchableOpacity>
         </View>
 
         {loading ? (
-          <View className="py-16 items-center"><ActivityIndicator size="large" color="#5b3fd1" /></View>
+          <View style={{ paddingTop: 64, alignItems: 'center' }}><ActivityIndicator size="large" color={colors.brand} /></View>
         ) : classes.length === 0 ? (
-          <EmptyStateAnimation icon="book-outline" title="No assigned classes" subtitle="Classes assigned to you will appear here." />
-        ) : classes.map((item) => (
-          <View key={item.id} className="rounded-3xl bg-surface dark:bg-surface-dark border border-border dark:border-border-dark p-5 mb-3">
-            <View className="flex-row items-start">
-              <View className="w-11 h-11 rounded-2xl bg-primary-soft items-center justify-center">
-                <ThemedText variant="caption" className="text-primary font-bold">{item.course_code.slice(0, 2).toUpperCase()}</ThemedText>
+          <EmptyState icon="book-outline" title="No assigned classes" message="Classes assigned to you will appear here." />
+        ) : classes.map((item, index) => (
+          <Animated.View key={item.id} entering={FadeInDown.duration(300).delay(Math.min(index, 6) * 45)} style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 22, padding: 16, marginBottom: 12, boxShadow: shadow.sm }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+              <View style={{ width: 44, height: 44, borderRadius: 15, backgroundColor: isDark ? colors.surfaceMuted : colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
+                <AppText variant="caption" weight="bold" color={colors.brand} style={{ fontSize: 12.5, lineHeight: 16 }}>{item.course_code.slice(0, 2).toUpperCase()}</AppText>
               </View>
-              <View className="flex-1 ml-3">
-                <ThemedText variant="subheading">{item.course_name}</ThemedText>
-                <ThemedText variant="tiny" className="text-text-muted dark:text-text-muted-dark mt-1">{item.course_code} · {item.section} · {item.enrolled_count} students</ThemedText>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <AppText variant="subheading" style={{ fontSize: 16 }}>{item.course_name}</AppText>
+                <AppText variant="caption" tone="muted" style={{ marginTop: 3 }}>{item.course_code} · {item.section} · {item.enrolled_count} students</AppText>
               </View>
             </View>
-            <View className="flex-row gap-2 mt-5">
-              <TouchableOpacity onPress={() => router.push('/teacher/marks')} className="flex-1 rounded-xl bg-primary-soft py-3 items-center" accessibilityRole="button" accessibilityLabel={`Manage marks for ${item.course_name}`}>
-                <ThemedText variant="caption" className="text-primary font-semibold">Marks</ThemedText>
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+              <TouchableOpacity onPress={() => router.push('/teacher/marks')} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: isDark ? colors.surfaceMuted : colors.brandSoft, borderRadius: 14, paddingVertical: 11 }} accessibilityRole="button" accessibilityLabel={`Manage marks for ${item.course_name}`}>
+                <Ionicons name="stats-chart-outline" size={15} color={colors.brand} />
+                <AppText variant="caption" weight="bold" color={colors.brand}>Marks</AppText>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => router.push(`/(student)/attendance/configure?classId=${encodeURIComponent(item.id)}&courseId=${encodeURIComponent(item.course_id)}&courseName=${encodeURIComponent(item.course_name)}` as any)}
-                className="flex-1 rounded-xl bg-primary py-3 items-center"
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 14, overflow: 'hidden', boxShadow: shadow.sm }}
                 accessibilityRole="button"
                 accessibilityLabel={`Start attendance for ${item.course_name}`}
               >
-                <ThemedText variant="caption" className="text-white font-semibold">Attendance</ThemedText>
+                <LinearGradient colors={colors.heroGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11 }}>
+                  <Ionicons name="radio-outline" size={15} color="#FFFFFF" />
+                  <AppText variant="caption" weight="bold" color="#FFFFFF">Attendance</AppText>
+                </LinearGradient>
               </TouchableOpacity>
             </View>
-          </View>
+          </Animated.View>
         ))}
       </ScrollView>
     </SafeAreaView>

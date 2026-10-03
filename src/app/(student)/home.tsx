@@ -16,6 +16,7 @@ import { EmptyStateAnimation } from '@/ui/EmptyStateAnimation';
 import { ThemedText } from '@/ui/ThemedText';
 import { FeedSkeleton } from '@/components/student/shared/FeedSkeleton';
 import { showToast } from '@/ui/Toast';
+import { useModalPresence } from '@/ui/modalStore';
 import {
   deleteInstitutionPost,
   fetchStudentHomeFeed,
@@ -79,6 +80,7 @@ export default function StudentHomeScreen() {
   const [commentPostId, setCommentPostId] = useState<string | null>(null);
   const mediaItems = useMemo(() => posts.flatMap((post) => post.media.filter((media) => media.type === 'image' || media.type === 'video').map((media) => ({ media, post }))), [posts]);
   const [selectedMediaIndex, setSelectedMediaIndex] = useState<number | null>(null);
+  useModalPresence(selectedMediaIndex != null);
   const selectedMedia = selectedMediaIndex == null ? null : mediaItems[selectedMediaIndex];
   const mediaListRef = useRef<FlatList<{ media: PostMedia; post: StudentFeedPost }>>(null);
 

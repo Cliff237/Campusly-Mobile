@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, ActivityIndicator, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/ui/ThemedText';
+import { useModalPresence } from '@/ui/modalStore';
 import { haptics } from '@/lib/haptics';
 import type { ActiveAttendanceSession } from '@/lib/types/attendance';
 
@@ -26,6 +27,7 @@ export function AttendanceCheckinModal({
 }: AttendanceCheckinModalProps) {
   const [fadeAnim] = useState(new Animated.Value(0));
   const [scaleAnim] = useState(new Animated.Value(0.8));
+  useModalPresence(visible);
 
   const showModal = () => {
     Animated.parallel([

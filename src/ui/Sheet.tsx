@@ -13,6 +13,7 @@ import Animated, { SlideInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText } from './AppText';
 import { CircleButton } from './CircleButton';
+import { useModalPresence } from './modalStore';
 import { radius } from './tokens';
 import { useAppTheme } from './useAppTheme';
 
@@ -37,6 +38,7 @@ export function Sheet({ visible, onClose, title, closable = true, scroll = false
   const { colors, shadow } = useAppTheme();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
+  useModalPresence(visible);
 
   const body = scroll ? (
     <ScrollView

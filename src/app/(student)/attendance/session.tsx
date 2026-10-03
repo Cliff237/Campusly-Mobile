@@ -13,7 +13,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { MotiView } from "moti";
 import { useLocalSearchParams, useRouter, useSegments } from "expo-router";
-import { ThemedText } from "@/ui/ThemedText";
+import { AppText } from "@/ui/AppText";
 import { showToast } from "@/ui/Toast";
 import { haptics } from "@/lib/haptics";
 import {
@@ -42,7 +42,7 @@ function ProgressRing({
     <View style={styles.ring}>
       {Array.from({ length: DOTS }, (_, i) => {
         const a = (i / DOTS) * Math.PI * 2 - Math.PI / 2,
-          color = i < 18 ? "#8b5cf6" : i < 40 ? "#39d7c5" : "#f58ac0";
+          color = i < 18 ? "#8B5CF6" : i < 40 ? "#34D399" : "#FBBF24";
         return (
           <MotiView
             key={i}
@@ -64,18 +64,20 @@ function ProgressRing({
         );
       })}
       <View style={styles.core}>
-        <ThemedText
+        <AppText
           variant="display"
-          style={{ color: remaining < 60 ? "#f9c878" : "#fff", fontSize: 43 }}
+          color={remaining < 60 ? "#FBBF24" : "#FFFFFF"}
+          style={{ fontSize: 43, lineHeight: 50 }}
         >
           {clock}
-        </ThemedText>
-        <ThemedText
-          variant="tiny"
-          style={{ color: "#b9b3ca", letterSpacing: 1 }}
+        </AppText>
+        <AppText
+          variant="caption"
+          color="#B9B3CA"
+          style={{ letterSpacing: 1, fontSize: 10.5, lineHeight: 14 }}
         >
           TIME REMAINING
-        </ThemedText>
+        </AppText>
       </View>
     </View>
   );
@@ -233,7 +235,7 @@ export default function LiveAttendanceScreen() {
         }}
         style={[
           styles.blob,
-          { backgroundColor: "#7147e8", top: -85, left: -75 },
+          { backgroundColor: "#5B3FD1", top: -85, left: -75 },
         ]}
       />
       <MotiView
@@ -247,7 +249,7 @@ export default function LiveAttendanceScreen() {
         }}
         style={[
           styles.blob,
-          { backgroundColor: "#18bfb1", top: 160, right: -95 },
+          { backgroundColor: "#14B8A6", top: 160, right: -95 },
         ]}
       />
       <MotiView
@@ -261,7 +263,7 @@ export default function LiveAttendanceScreen() {
         }}
         style={[
           styles.blob,
-          { backgroundColor: "#e45d9d", bottom: -135, left: 70 },
+          { backgroundColor: "#7C3AED", bottom: -135, left: 70 },
         ]}
       />
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
@@ -280,23 +282,22 @@ export default function LiveAttendanceScreen() {
                 }}
                 className="w-2 h-2 rounded-full bg-emerald-300 mr-2"
               />
-              <ThemedText
-                variant="tiny"
-                style={{
-                  color: "#cfc7e8",
-                  fontWeight: "800",
-                  letterSpacing: 1.3,
-                }}
+              <AppText
+                variant="caption"
+                color="#CFC5FF"
+                weight="extrabold"
+                style={{ letterSpacing: 1.3, fontSize: 11, lineHeight: 14 }}
               >
                 LIVE ATTENDANCE
-              </ThemedText>
+              </AppText>
             </View>
-            <ThemedText
+            <AppText
               variant="subheading"
-              style={{ color: "#fff", marginTop: 5 }}
+              color="#FFFFFF"
+              style={{ marginTop: 5 }}
             >
               {name}
-            </ThemedText>
+            </AppText>
           </View>
           <TouchableOpacity
             disabled={closing}
@@ -316,12 +317,14 @@ export default function LiveAttendanceScreen() {
             }
             style={styles.end}
           >
-            <ThemedText
+            <AppText
               variant="caption"
-              style={{ color: "#fff", fontWeight: "700" }}
+              color="#FFD9DF"
+              weight="bold"
+              style={{ fontSize: 12.5, lineHeight: 16 }}
             >
               {closing ? "Ending…" : "End"}
-            </ThemedText>
+            </AppText>
           </TouchableOpacity>
         </View>
         <View style={{ alignItems: "center", paddingVertical: 29 }}>
@@ -334,30 +337,32 @@ export default function LiveAttendanceScreen() {
           <ProgressRing remaining={remaining} total={total} />
           <View style={styles.listening}>
             <Ionicons name="radio-outline" size={17} color="#fff" />
-            <ThemedText
+            <AppText
               variant="caption"
-              style={{ color: "#fff", fontWeight: "700", marginLeft: 8 }}
+              color="#FFFFFF"
+              weight="bold"
+              style={{ marginLeft: 8 }}
             >
               Listening for nearby students
-            </ThemedText>
+            </AppText>
           </View>
         </View>
         <View style={styles.card}>
           <View className="flex-row items-end justify-between">
             <View>
-              <ThemedText variant="subheading">Live roster</ThemedText>
-              <ThemedText variant="tiny" className="text-text-muted mt-1">
+              <AppText variant="subheading" color="#242039">Live roster</AppText>
+              <AppText variant="caption" color="#706B82" style={{ marginTop: 3 }}>
                 Code {p.code} ·{" "}
                 {p.manual === "true"
                   ? "Tap to manually mark"
                   : "Automatic check-in"}
-              </ThemedText>
+              </AppText>
             </View>
             <View className="items-end">
-              <ThemedText variant="heading" className="text-primary">
+              <AppText variant="heading" className="text-primary">
                 {present}/{roster.length}
-              </ThemedText>
-              <ThemedText variant="tiny">checked in</ThemedText>
+              </AppText>
+              <AppText variant="caption" color="#706B82">checked in</AppText>
             </View>
           </View>
           <View className="mt-4 flex-row items-center rounded-2xl bg-surface-hover px-3">
@@ -373,9 +378,9 @@ export default function LiveAttendanceScreen() {
           {loading ? (
             <View className="py-10 items-center">
               <ActivityIndicator color="#5b3fd1" />
-              <ThemedText variant="tiny" className="mt-3">
+              <AppText variant="caption" color="#706B82" style={{ marginTop: 10 }}>
                 Loading enrolled students…
-              </ThemedText>
+              </AppText>
             </View>
           ) : (
             shown.map((s, i) => {
@@ -406,15 +411,15 @@ export default function LiveAttendanceScreen() {
                       />
                     </View>
                     <View className="flex-1">
-                      <ThemedText variant="caption" className="font-semibold">
+                      <AppText variant="label" weight="bold" color="#242039" numberOfLines={1}>
                         {s.full_name}
-                      </ThemedText>
-                      <ThemedText
-                        variant="tiny"
-                        className={here ? "text-success" : "text-text-muted"}
+                      </AppText>
+                      <AppText
+                        variant="caption"
+                        color={here ? "#25855F" : "#706B82"}
                       >
                         {here ? "Checked in just now" : "Waiting for check-in"}
-                      </ThemedText>
+                      </AppText>
                     </View>
                     {p.manual === "true" ? (
                       <Ionicons
@@ -429,13 +434,14 @@ export default function LiveAttendanceScreen() {
             })
           )}
         </View>
-        <ThemedText
-          variant="tiny"
+        <AppText
+          variant="caption"
           align="center"
-          style={{ color: "#b9b3ca", marginTop: 17 }}
+          color="#B9B3CA"
+          style={{ marginTop: 17 }}
         >
           Session settings are locked while attendance is live.
-        </ThemedText>
+        </AppText>
       </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -461,10 +467,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   end: {
-    backgroundColor: "rgba(255,255,255,.13)",
+    backgroundColor: "rgba(248,113,113,.18)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,.14)",
-    borderRadius: 14,
+    borderColor: "rgba(248,113,113,.45)",
+    borderRadius: 999,
     paddingHorizontal: 15,
     paddingVertical: 10,
   },
@@ -473,7 +479,7 @@ const styles = StyleSheet.create({
     width: 200,
     height: 200,
     borderRadius: 100,
-    backgroundColor: "#7654e6",
+    backgroundColor: "#5B3FD1",
   },
   listening: {
     flexDirection: "row",
@@ -482,7 +488,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 11,
     borderRadius: 99,
-    backgroundColor: "rgba(104,70,220,.72)",
+    backgroundColor: "rgba(91,63,209,.75)",
     borderWidth: 1,
     borderColor: "rgba(196,180,255,.35)",
   },
