@@ -1,11 +1,31 @@
 // src/app/_layout.tsx
+import { useEffect } from 'react';
 import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { ThemeProvider } from '@/hooks/useTheme';
 import { AuthProvider } from '@/lib/auth/AuthContext';
+import { useAppFonts } from '@/ui/fonts';
 import { Toast, toastConfig } from '@/ui/Toast';
 import '../global.css';
 
+// Keep the native splash visible until the fonts are ready, so the first frame
+// is never drawn in a fallback font.
+SplashScreen.preventAutoHideAsync().catch(() => {});
+
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useAppFonts();
+
+  useEffect(() => {
+    // On a font error we still continue (system font) rather than block the app.
+    if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [fontsLoaded, fontError]);
+
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
+
   return (
     <ThemeProvider>
       <AuthProvider>

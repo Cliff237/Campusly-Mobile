@@ -1,17 +1,24 @@
 import { View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 
-import { ThemedText } from '@/ui/ThemedText';
+import { EmptyState } from '@/ui/EmptyState';
+import { ScreenHero } from '@/ui/ScreenHero';
+import { useAppTheme } from '@/ui/useAppTheme';
 
 export default function NotificationsScreen() {
+	const { colors } = useAppTheme();
+
 	return (
-		<SafeAreaView className="flex-1 bg-bg dark:bg-bg-dark">
-			<View className="px-5 pt-6">
-				<ThemedText variant="display">Alerts</ThemedText>
-				<ThemedText variant="muted" className="mt-2">
-					Your campus updates and notifications will appear here.
-				</ThemedText>
+		<View style={{ flex: 1, backgroundColor: colors.background }}>
+			<StatusBar style="light" />
+			<ScreenHero title="Alerts" />
+			<View style={{ flex: 1, justifyContent: 'center', paddingBottom: 48 }}>
+				<EmptyState
+					icon="notifications-outline"
+					title="No alerts yet"
+					message="Your campus updates and notifications will appear here."
+				/>
 			</View>
-		</SafeAreaView>
+		</View>
 	);
 }
