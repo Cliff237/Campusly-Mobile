@@ -2,11 +2,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Image, KeyboardAvoidingView, Linking, PanResponder, Platform, RefreshControl, ScrollView, TextInput, TouchableOpacity, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ThemedText } from '@/ui/ThemedText';
-import { EmptyStateAnimation } from '@/ui/EmptyStateAnimation';
+import Reanimated, { FadeInUp } from 'react-native-reanimated';
+import { AppText } from '@/ui/AppText';
+import { EmptyState } from '@/ui/EmptyState';
+import { useAppTheme } from '@/ui/useAppTheme';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
+import { relativeTime, initialsFromName } from '@/lib/format';
 import { API_URL } from '@/lib/config';
 import { createInstitutionPost, fetchInstitutionMemberPosts, togglePostReaction, uploadPostMedia } from '@/lib/api/student';
 import type { PostMedia, StudentFeedPost } from '@/lib/types/student';
@@ -16,6 +20,7 @@ export default function TeacherCourseThread() {
   const router = useRouter();
   const { accessToken, currentMembership, user } = useAuth();
   const { hasPermission, hasAny } = usePermissions();
+  const { colors, shadow, isDark } = useAppTheme();
   const [posts, setPosts] = useState<StudentFeedPost[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState('');
@@ -91,81 +96,166 @@ export default function TeacherCourseThread() {
   };
 
   return (
-    <KeyboardAvoidingView className="flex-1 bg-mist dark:bg-bg-dark" behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}>
-      <View className="flex-row items-center border-b border-border dark:border-border-dark bg-surface dark:bg-surface-dark px-4 py-3">
-        <TouchableOpacity onPress={() => router.back()} className="w-10 h-10 items-center justify-center">
-          <Ionicons name="chevron-back" size={24} color="#17332f" />
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: isDark ? colors.background : '#F1F0F7' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}>
+      {/* ── Conversation header ── */}
+      <LinearGradient colors={colors.heroGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, gap: 4 }}>
+        <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Back" style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' }}>
+          <Ionicons name="chevron-back" size={23} color="#FFFFFF" />
         </TouchableOpacity>
-        <View className="w-10 h-10 rounded-xl bg-primary-soft items-center justify-center mr-3">
-          <ThemedText variant="subheading" className="text-primary">{title.slice(0, 1).toUpperCase()}</ThemedText>
+        <LinearGradient colors={['#FFFFFF40', '#FFFFFF20']} style={{ width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)' }}>
+          <AppText weight="bold" color="#FFFFFF" style={{ fontSize: 16 }}>{initialsFromName(title)}</AppText>
+        </LinearGradient>
+        <View style={{ flex: 1, marginLeft: 10 }}>
+          <AppText weight="bold" color="#FFFFFF" numberOfLines={1} style={{ fontSize: 16, lineHeight: 20 }}>{title}</AppText>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 1 }}>
+            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#6EE7B7' }} />
+            <AppText variant="caption" color="#CFC5FF" style={{ fontSize: 11.5, lineHeight: 14 }}>Class course group</AppText>
+          </View>
         </View>
-        <TouchableOpacity className="flex-1" onPress={() => router.push(`/teacher/courses/${id}/settings?name=${encodeURIComponent(title)}` as any)}>
-          <ThemedText variant="subheading" numberOfLines={1}>{title}</ThemedText>
-          <ThemedText variant="tiny">Class course group</ThemedText>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Channel settings"
+          onPress={() => router.push(`/teacher/courses/${id}/settings?name=${encodeURIComponent(title)}` as any)}
+          style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Ionicons name="ellipsis-horizontal" size={19} color="#FFFFFF" />
         </TouchableOpacity>
-      </View>
+      </LinearGradient>
 
       <ScrollView
-        className="flex-1"
         ref={messagesRef}
-        contentContainerStyle={{ paddingTop: 14, paddingBottom: 24, flexGrow: 1, justifyContent: posts.length ? 'flex-end' : 'center' }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#0f766e" />}
+        contentContainerStyle={{ paddingTop: 16, paddingBottom: 20, flexGrow: 1, justifyContent: posts.length ? 'flex-end' : 'center' }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand} />}
       >
-        <View className="self-center rounded-full bg-primary-soft px-3 py-1 mb-4">
-          <ThemedText variant="tiny" className="text-primary">Messages for this course class</ThemedText>
+        <View style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: isDark ? colors.surfaceMuted : '#FFFFFF', borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, marginBottom: 16 }}>
+          <Ionicons name="lock-closed" size={11} color={colors.textMuted} />
+          <AppText variant="caption" tone="muted" weight="semibold" style={{ fontSize: 11.5, lineHeight: 14 }}>Messages for this course class</AppText>
         </View>
-        {posts.length ? posts.map((post) => {
+        {posts.length ? posts.map((post, index) => {
           const mine = post.author_user_id === user?.id;
           const report = post.metadata?.attendance_report as { present?: number; absent?: number; pdf_url?: string } | undefined;
           const reportUrl = report?.pdf_url ? (report.pdf_url.startsWith('/') ? `${API_URL}${report.pdf_url}` : report.pdf_url) : null;
           return (
-            <View key={post.id} className={`mx-4 mb-3 max-w-[88%] rounded-3xl overflow-hidden ${report ? 'self-stretch bg-ink' : `px-4 py-3 ${mine ? 'self-end rounded-tr-md bg-message-out dark:bg-message-out-dark' : 'self-start rounded-tl-md bg-message-in dark:bg-surface-dark border border-border dark:border-border-dark'}`}`}>
-              {report ? <View className="bg-sun px-4 py-3 flex-row items-center"><Ionicons name="checkmark-done-circle" size={24} color="#fff" /><View className="ml-2"><ThemedText variant="tiny" className="text-white/80 font-semibold">SESSION COMPLETE</ThemedText><ThemedText variant="caption" className="text-white font-bold">Attendance report published</ThemedText></View></View> : null}
-              <View className={report ? 'px-4 py-3' : ''}>
-                <ThemedText variant="tiny" className={report ? 'text-white/70 font-semibold' : mine ? 'text-ocean-deep dark:text-ocean-soft font-semibold' : 'text-primary font-semibold'}>{post.author_name}</ThemedText>
-                {post.title ? <ThemedText variant="subheading" className={`mt-1 ${report ? 'text-white' : ''}`}>{post.title}</ThemedText> : null}
-                <ThemedText variant="body" className={`mt-1 ${report ? 'text-white' : ''}`}>{post.body}</ThemedText>
-                {report ? <TouchableOpacity disabled={!reportUrl} onPress={() => reportUrl ? void Linking.openURL(reportUrl) : undefined} className="mt-3 rounded-2xl bg-white/10 px-3 py-3 flex-row items-center"><Ionicons name="download-outline" size={19} color="#fbbf24" /><ThemedText variant="caption" className="flex-1 ml-2 text-white font-semibold">Download PDF report</ThemedText><ThemedText variant="tiny" className="text-white/70">{report.present ?? 0} present · {report.absent ?? 0} absent</ThemedText></TouchableOpacity> : null}
-              </View>
-              <View className="flex-row items-center justify-end mt-2">
-                <TouchableOpacity onPress={() => void react(post)} className="flex-row items-center">
-                  <Ionicons name={post.is_reacted ? 'heart' : 'heart-outline'} size={17} color={post.is_reacted ? '#d15a67' : '#607873'} />
-                  <ThemedText variant="tiny" className="ml-1">{post.reactions_count || ''}</ThemedText>
-                </TouchableOpacity>
-              </View>
-            </View>
+            <Reanimated.View key={post.id} entering={FadeInUp.duration(260).delay(Math.min(index, 8) * 30)} style={{ marginHorizontal: 16, marginBottom: 10, maxWidth: '88%', alignSelf: mine ? 'flex-end' : 'flex-start' }}>
+              {report ? (
+                /* Attendance report — official system card */
+                <View style={{ borderRadius: 22, overflow: 'hidden', boxShadow: shadow.md }}>
+                  <LinearGradient colors={['#F59E0B', '#D97706']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ paddingHorizontal: 14, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', gap: 9 }}>
+                    <Ionicons name="checkmark-done-circle" size={22} color="#FFFFFF" />
+                    <View style={{ flex: 1 }}>
+                      <AppText variant="caption" weight="bold" color="#FFFFFF" style={{ fontSize: 10.5, lineHeight: 13, letterSpacing: 1 }}>SESSION COMPLETE</AppText>
+                      <AppText weight="bold" color="#FFFFFF" style={{ fontSize: 13.5, lineHeight: 17 }}>Attendance report published</AppText>
+                    </View>
+                  </LinearGradient>
+                  <View style={{ backgroundColor: isDark ? colors.surface : '#1D1636', padding: 14 }}>
+                    <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                      <View style={{ flex: 1, backgroundColor: 'rgba(52,211,153,0.14)', borderRadius: 12, padding: 9 }}>
+                        <AppText variant="caption" weight="bold" color="#6EE7B7" style={{ fontSize: 10.5, lineHeight: 13 }}>PRESENT</AppText>
+                        <AppText weight="bold" color="#FFFFFF" style={{ fontSize: 19, lineHeight: 24, marginTop: 2 }}>{report.present ?? 0}</AppText>
+                      </View>
+                      <View style={{ flex: 1, backgroundColor: 'rgba(248,113,113,0.14)', borderRadius: 12, padding: 9 }}>
+                        <AppText variant="caption" weight="bold" color="#FCA5A5" style={{ fontSize: 10.5, lineHeight: 13 }}>ABSENT</AppText>
+                        <AppText weight="bold" color="#FFFFFF" style={{ fontSize: 19, lineHeight: 24, marginTop: 2 }}>{report.absent ?? 0}</AppText>
+                      </View>
+                    </View>
+                    <TouchableOpacity disabled={!reportUrl} onPress={() => reportUrl ? void Linking.openURL(reportUrl) : undefined} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 13 }}>
+                      <Ionicons name="download-outline" size={18} color="#FBBF24" />
+                      <AppText weight="bold" color="#FFFFFF" style={{ fontSize: 13, lineHeight: 17, flex: 1 }}>Download PDF report</AppText>
+                      <Ionicons name="open-outline" size={15} color="rgba(255,255,255,0.6)" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                /* Regular message bubble */
+                <View
+                  style={{
+                    backgroundColor: mine ? colors.brand : colors.surface,
+                    borderWidth: mine ? 0 : 1,
+                    borderColor: colors.border,
+                    borderRadius: 20,
+                    borderTopRightRadius: mine ? 6 : 20,
+                    borderTopLeftRadius: mine ? 20 : 6,
+                    paddingHorizontal: 14,
+                    paddingVertical: 11,
+                    boxShadow: shadow.sm,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    <AppText variant="caption" weight="bold" color={mine ? '#DDD4FF' : colors.brand} style={{ fontSize: 11.5, lineHeight: 14 }}>
+                      {mine ? `${post.author_name} · You` : post.author_name}
+                    </AppText>
+                  </View>
+                  {post.title ? <AppText weight="bold" color={mine ? '#FFFFFF' : colors.text} style={{ fontSize: 14.5, lineHeight: 19, marginBottom: 2 }}>{post.title}</AppText> : null}
+                  <AppText color={mine ? '#F4F1FF' : colors.text} style={{ fontSize: 14.5, lineHeight: 21 }}>{post.body}</AppText>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginTop: 6 }}>
+                    <AppText variant="caption" color={mine ? 'rgba(255,255,255,0.7)' : colors.textMuted} style={{ fontSize: 10.5, lineHeight: 13 }}>
+                      {relativeTime(post.published_at ?? post.created_at)}
+                    </AppText>
+                    <TouchableOpacity onPress={() => void react(post)} accessibilityRole="button" accessibilityLabel="React to message" hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Ionicons name={post.is_reacted ? 'heart' : 'heart-outline'} size={15} color={post.is_reacted ? (mine ? '#FFB4BC' : colors.danger) : (mine ? 'rgba(255,255,255,0.75)' : colors.textMuted)} />
+                      {post.reactions_count ? (
+                        <AppText variant="caption" weight="semibold" color={mine ? '#FFFFFF' : colors.textMuted} style={{ fontSize: 11, lineHeight: 14 }}>{post.reactions_count}</AppText>
+                      ) : null}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+            </Reanimated.View>
           );
-        }) : <EmptyStateAnimation icon="chatbubble-ellipses-outline" title="No course messages" subtitle="Share the first update with your students." />}
+        }) : <EmptyState icon="chatbubble-ellipses-outline" title="No course messages" message="Share the first update with your students." />}
       </ScrollView>
 
       {hasPermission('start_attendance') ? (
         <Animated.View {...attendancePan.panHandlers} style={{ position: 'absolute', right: 20, bottom: 96, transform: attendancePosition.getTranslateTransform() }}>
-          <TouchableOpacity onPress={() => router.push(`/teacher/attendance/configure?classId=${classId || ''}&courseId=${id || ''}&courseName=${encodeURIComponent(title)}` as any)} className="h-14 w-14 rounded-full bg-sun items-center justify-center shadow-lg">
-            <Ionicons name="radio-outline" size={23} color="#fff" />
+          <TouchableOpacity
+            onPress={() => router.push(`/teacher/attendance/configure?classId=${classId || ''}&courseId=${id || ''}&courseName=${encodeURIComponent(title)}` as any)}
+            accessibilityRole="button"
+            accessibilityLabel="Start attendance"
+            style={{ height: 54, width: 54, borderRadius: 27, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', boxShadow: shadow.lg }}
+          >
+            <LinearGradient colors={['#FBBF24', '#D97706']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ height: 54, width: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="radio-outline" size={23} color="#FFFFFF" />
+            </LinearGradient>
           </TouchableOpacity>
         </Animated.View>
       ) : null}
       {canSendMessage ? (
-        <View className="border-t border-border dark:border-border-dark bg-surface dark:bg-surface-dark px-3 py-2">
-          <View className="flex-row items-end rounded-3xl bg-mist dark:bg-surface-hover-dark px-2 py-1">
-            <TouchableOpacity onPress={() => void pickAttachment()} className="mb-0.5 h-10 w-10 items-center justify-center">
-              <Ionicons name="add-circle-outline" size={23} color="#6d28d9" />
+        <View style={{ borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 12, paddingTop: 10, paddingBottom: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', backgroundColor: isDark ? colors.surfaceMuted : '#F1F0F7', borderRadius: 24, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 6, paddingVertical: 4 }}>
+            <TouchableOpacity onPress={() => void pickAttachment()} accessibilityRole="button" accessibilityLabel="Add attachment" style={{ height: 40, width: 40, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="add-circle-outline" size={24} color={colors.brand} />
             </TouchableOpacity>
             <TextInput
               value={message}
               onChangeText={setMessage}
               placeholder="Write to the class..."
-              placeholderTextColor="#706b82"
+              placeholderTextColor={colors.textMuted}
               multiline
               maxLength={2000}
               editable={!sending}
-              className="max-h-28 flex-1 px-3 py-2.5 text-text dark:text-text-dark"
+              style={{ maxHeight: 112, flex: 1, paddingHorizontal: 8, paddingVertical: 10, fontSize: 15, color: colors.text }}
             />
-            <TouchableOpacity disabled={(!message.trim() && !attachment) || sending} onPress={() => void sendMessage()} className={`mb-0.5 h-10 w-10 items-center justify-center rounded-full ${(message.trim() || attachment) && !sending ? 'bg-primary' : 'bg-border dark:bg-border-dark'}`}>
-              <Ionicons name={sending ? 'ellipsis-horizontal' : 'send'} size={18} color="#fff" />
+            <TouchableOpacity
+              disabled={(!message.trim() && !attachment) || sending}
+              onPress={() => void sendMessage()}
+              accessibilityRole="button"
+              accessibilityLabel="Send message"
+              style={{ height: 40, width: 40, borderRadius: 20, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', opacity: (message.trim() || attachment) && !sending ? 1 : 0.45 }}
+            >
+              <LinearGradient colors={colors.heroGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ height: 40, width: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name={sending ? 'ellipsis-horizontal' : 'send'} size={17} color="#FFFFFF" />
+              </LinearGradient>
             </TouchableOpacity>
           </View>
-          {attachment ? <View className="mt-2 flex-row items-center"><Image source={{ uri: attachment.url }} className="h-12 w-12 rounded-xl" /><ThemedText variant="tiny" className="ml-2 flex-1" numberOfLines={1}>{attachment.label}</ThemedText><TouchableOpacity onPress={() => setAttachment(null)}><Ionicons name="close-circle" size={20} color="#c2415f" /></TouchableOpacity></View> : null}
+          {attachment ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, backgroundColor: isDark ? colors.surfaceMuted : colors.brandSoft, borderRadius: 14, padding: 8 }}>
+              <Image source={{ uri: attachment.url }} style={{ width: 44, height: 44, borderRadius: 10 }} />
+              <AppText variant="caption" weight="semibold" numberOfLines={1} style={{ marginLeft: 10, flex: 1 }}>{attachment.label}</AppText>
+              <TouchableOpacity onPress={() => setAttachment(null)} accessibilityRole="button" accessibilityLabel="Remove attachment" hitSlop={8}>
+                <Ionicons name="close-circle" size={20} color={colors.danger} />
+              </TouchableOpacity>
+            </View>
+          ) : null}
         </View>
       ) : null}
     </KeyboardAvoidingView>

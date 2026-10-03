@@ -1,17 +1,20 @@
 import { useCallback } from 'react';
+import { StatusBar } from 'expo-status-bar';
 import { Tabs, useFocusEffect, useRouter, useSegments } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { BackHandler } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useColorScheme } from 'nativewind';
+import { BackHandler, View } from 'react-native';
+import { useAppTheme } from '@/ui/useAppTheme';
+import { tabIcon, useTabBarOptions } from '@/ui/tabBarOptions';
+import { useModalsOpen } from '@/ui/modalStore';
 import { TeacherTopNav } from '@/components/teacher/TeacherTopNav';
 
 /** Teacher routes have their own capability-aware top and bottom navigation. */
 export default function TeacherLayout() {
   const router = useRouter();
-  const segments = useSegments();
-  const { colorScheme } = useColorScheme();
-  const dark = colorScheme === 'dark';
+  // expo-router types segments as a 1-tuple; widen for length checks.
+  const segments = useSegments() as readonly string[];
+  const { colors } = useAppTheme();
+  const options = useTabBarOptions();
+  const modalsOpen = useModalsOpen();
 
   // Leaving the teacher workspace from its home tab returns to Discover rather
   // than closing the application on Android.
@@ -26,19 +29,27 @@ export default function TeacherLayout() {
   }, [isTeacherHome, router]));
 
   return (
-    <SafeAreaView className="flex-1 bg-bg dark:bg-bg-dark" edges={['top']}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      {/* The violet header sits under the status bar, so its icons stay light. */}
+      <StatusBar style="light" />
       <TeacherTopNav />
-      <Tabs screenOptions={{ headerShown: false, tabBarStyle: { backgroundColor: dark ? '#171326' : '#ffffff', borderTopColor: dark ? '#44345d' : '#e4e1ee', height: 82, paddingTop: 7 }, tabBarActiveTintColor: '#6d28d9', tabBarInactiveTintColor: dark ? '#b7aecb' : '#706b82', tabBarLabelStyle: { fontSize: 11, fontWeight: '600' } }}>
-        <Tabs.Screen name="home" options={{ title: 'Home', tabBarIcon: ({ color, size }) => <Ionicons name="home-outline" color={color} size={size} /> }} />
-        <Tabs.Screen name="courses" options={{ title: 'Courses', tabBarIcon: ({ color, size }) => <Ionicons name="book-outline" color={color} size={size} /> }} />
+      <Tabs
+        screenOptions={{
+          ...options,
+          // The bottom nav never peeks out from behind a modal / sheet.
+          tabBarStyle: modalsOpen ? { ...options.tabBarStyle, display: 'none' } : options.tabBarStyle,
+        }}
+      >
+        <Tabs.Screen name="home" options={{ title: 'Home', tabBarIcon: tabIcon('home', 'home-outline') }} />
+        <Tabs.Screen name="courses" options={{ title: 'Courses', tabBarIcon: tabIcon('book', 'book-outline') }} />
         <Tabs.Screen name="courses/[id]" options={{ href: null }} />
         <Tabs.Screen name="courses/[id]/settings" options={{ href: null }} />
-        <Tabs.Screen name="schedule" options={{ title: 'Schedule', tabBarIcon: ({ color, size }) => <Ionicons name="calendar-outline" color={color} size={size} /> }} />
-        <Tabs.Screen name="roster" options={{ title: 'Roster', tabBarIcon: ({ color, size }) => <Ionicons name="people-outline" color={color} size={size} /> }} />
+        <Tabs.Screen name="schedule" options={{ title: 'Schedule', tabBarIcon: tabIcon('calendar', 'calendar-outline') }} />
+        <Tabs.Screen name="roster" options={{ title: 'Roster', tabBarIcon: tabIcon('people', 'people-outline') }} />
         <Tabs.Screen name="marks" options={{ href: null }} />
         <Tabs.Screen name="attendance" options={{ href: null, tabBarStyle: { display: 'none' } }} />
         <Tabs.Screen name="teacher" options={{ href: null }} />
       </Tabs>
-    </SafeAreaView>
+    </View>
   );
 }

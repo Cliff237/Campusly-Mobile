@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColorScheme } from 'nativewind';
 import { ThemedText } from '@/ui/ThemedText';
 import { showToast } from '@/ui/Toast';
+import { useModalPresence } from '@/ui/modalStore';
 import { haptics } from '@/lib/haptics';
 import { createInstitutionPost, updateInstitutionPost, uploadPostMedia } from '@/lib/api/student';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -126,6 +127,7 @@ export function PostComposer({
   const [showMore, setShowMore] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [pickerField, setPickerField] = useState<{ key: string; mode: 'date' | 'time' } | null>(null);
+  useModalPresence(visible);
 
   const selectedCategory = useMemo(
     () => CATEGORIES.find((item) => item.id === category) ?? CATEGORIES[0],

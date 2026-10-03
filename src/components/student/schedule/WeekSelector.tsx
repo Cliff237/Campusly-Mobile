@@ -1,5 +1,6 @@
 import { ScrollView, TouchableOpacity, View } from 'react-native';
-import { ThemedText } from '@/ui/ThemedText';
+import { AppText } from '@/ui/AppText';
+import { useAppTheme } from '@/ui/useAppTheme';
 import { formatDayLabel } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
 
@@ -18,6 +19,7 @@ function startOfWeek(date: Date): Date {
 }
 
 export function WeekSelector({ selected, onSelect }: WeekSelectorProps) {
+  const { colors, shadow } = useAppTheme();
   const start = startOfWeek(selected);
   const days = Array.from({ length: 7 }, (_, index) => {
     const date = new Date(start);
@@ -29,35 +31,47 @@ export function WeekSelector({ selected, onSelect }: WeekSelectorProps) {
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}
-      className="mb-4"
+      contentContainerStyle={{ paddingHorizontal: 20, gap: 9, paddingBottom: 16 }}
     >
       {days.map((date) => {
         const active = date.toDateString() === selected.toDateString();
+        const today = date.toDateString() === new Date().toDateString();
         return (
           <TouchableOpacity
             key={date.toISOString()}
             accessibilityRole="button"
             accessibilityLabel={date.toDateString()}
+            accessibilityState={{ selected: active }}
             onPress={() => {
               haptics.selection();
               onSelect(date);
             }}
-            className={`w-14 py-3 rounded-2xl items-center border ${
-              active
-                ? 'bg-accent-start border-accent-start'
-                : 'bg-surface dark:bg-surface-dark border-border dark:border-border-dark'
-            }`}
+            style={{
+              width: 56,
+              paddingVertical: 12,
+              borderRadius: 18,
+              alignItems: 'center',
+              backgroundColor: active ? colors.brand : colors.surface,
+              borderWidth: 1,
+              borderColor: active ? colors.brand : colors.border,
+              boxShadow: active ? shadow.md : shadow.sm,
+            }}
           >
-            <ThemedText variant="tiny" className={active ? 'text-white' : 'text-text-muted dark:text-text-muted-dark'}>
+            <AppText variant="caption" weight="bold" color={active ? '#DDD4FF' : colors.textMuted} style={{ fontSize: 11, lineHeight: 14 }}>
               {formatDayLabel(date)}
-            </ThemedText>
-            <ThemedText variant="subheading" className={active ? 'text-white' : 'text-text dark:text-text-dark'}>
+            </AppText>
+            <AppText variant="subheading" color={active ? '#FFFFFF' : colors.text} style={{ marginTop: 2, fontSize: 17, lineHeight: 22 }}>
               {date.getDate()}
-            </ThemedText>
+            </AppText>
+            {today ? (
+              <View style={{ width: 5, height: 5, borderRadius: 3, marginTop: 4, backgroundColor: active ? '#FBBF24' : colors.brand }} />
+            ) : (
+              <View style={{ width: 5, height: 5, borderRadius: 3, marginTop: 4, backgroundColor: 'transparent' }} />
+            )}
           </TouchableOpacity>
         );
       })}
+      <View style={{ width: 4 }} />
     </ScrollView>
   );
 }

@@ -3,25 +3,25 @@ import { Alert, Linking, Share, TouchableOpacity, View } from 'react-native';
 import { Image } from 'expo-image';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, {
+  Easing,
+  FadeInRight,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { useColorScheme } from 'nativewind';
-import { ThemedText } from '@/ui/ThemedText';
+import { AppText } from '@/ui/AppText';
+import { useAppTheme } from '@/ui/useAppTheme';
 import { haptics } from '@/lib/haptics';
 import { initialsFromName, relativeTime } from '@/lib/format';
-import type { StudentFeedPost, StudentPostCategory } from '@/lib/types/student';
-
-const CATEGORY_LABELS: Record<StudentPostCategory, string> = {
-  general: 'General',
-  event: 'Event',
-  opportunity: 'Opportunity',
-  achievement: 'Achievement',
-  official_announcement: 'Official',
-  partnership: 'Partnership',
-  academic: 'Academic',
-};
-const CATEGORY_ACCENTS: Record<StudentPostCategory, string> = {
-  general: '#6d28d9', event: '#d97706', opportunity: '#3974b8', achievement: '#c98b2e', official_announcement: '#c2415f', partnership: '#0f766e', academic: '#3974b8',
-};
+import { monthDayBadge, postTypeTheme } from '@/components/feed/postTypeTheme';
+import { DetailRow, TintChip } from '@/components/feed/PostCardBits';
+import type { StudentFeedPost } from '@/lib/types/student';
 
 interface FeedPostCardProps {
   post: StudentFeedPost;
@@ -35,6 +35,13 @@ interface FeedPostCardProps {
   onMediaPress?: (post: StudentFeedPost, media: StudentFeedPost['media'][number]) => void;
 }
 
+/**
+ * Feed post card with a per-type identity: every category gets its own ribbon
+ * colour, icon and detail panel, so events, opportunities, announcements and
+ * achievements are instantly recognisable while scrolling.
+ *
+ * Interactions (like / comment / share / menu / media) are unchanged.
+ */
 export const FeedPostCard = memo(function FeedPostCard({
   post,
   canReact,
@@ -47,26 +54,39 @@ export const FeedPostCard = memo(function FeedPostCard({
   onMediaPress,
 }: FeedPostCardProps) {
   const { colorScheme } = useColorScheme();
+  const { colors, shadow } = useAppTheme();
   const isDark = colorScheme === 'dark';
   const [liked, setLiked] = useState(!!post.is_reacted);
   const [likeCount, setLikeCount] = useState(post.reactions_count);
   const [expanded, setExpanded] = useState(false);
   const [busy, setBusy] = useState(false);
   const scale = useSharedValue(1);
+  const badgePulse = useSharedValue(1);
 
   useEffect(() => {
     setLiked(!!post.is_reacted);
     setLikeCount(post.reactions_count);
   }, [post.id, post.is_reacted, post.reactions_count]);
 
-  const heartStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
+  // Events and official announcements breathe gently — rare categories, so
+  // only a couple of cards in view ever run this loop.
+  useEffect(() => {
+    if (post.category !== 'event' && post.category !== 'official_announcement') return;
+    badgePulse.value = withRepeat(
+      withSequence(
+        withTiming(1.08, { duration: 900, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 900, easing: Easing.inOut(Easing.ease) }),
+      ),
+      -1,
+      true,
+    );
+  }, [badgePulse, post.category]);
 
-  const muted = isDark ? '#b0b3b8' : '#65676b';
-  const text = isDark ? '#e4e6eb' : '#050505';
-  const surface = isDark ? '#242526' : '#ffffff';
-  const divider = isDark ? '#3a3b3c' : '#ced0d4';
+  const heartStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const badgeStyle = useAnimatedStyle(() => ({ transform: [{ scale: badgePulse.value }] }));
+
+  const theme = postTypeTheme(post.category, isDark);
+  const muted = colors.textMuted;
   const sender = post.author_name || post.course_name || post.institution_name || 'Campusly';
   const images = post.media.filter((item) => item.type === 'image');
   const attachments = post.media.filter((item) => item.type !== 'image');
@@ -91,9 +111,17 @@ export const FeedPostCard = memo(function FeedPostCard({
       }
     };
   }, [videoAttachment, videoPlayer]);
-  const accent = CATEGORY_ACCENTS[post.category] ?? '#1877f2';
+
   const longBody = post.body.length > 180;
   const bodyText = expanded || !longBody ? post.body : `${post.body.slice(0, 180).trim()}...`;
+
+  const meta = post.metadata ?? {};
+  const eventBadge = post.category === 'event' ? monthDayBadge(meta.start_date) : null;
+  const hasDetail =
+    post.category === 'event' ||
+    post.category === 'opportunity' ||
+    post.category === 'achievement' ||
+    post.category === 'official_announcement';
 
   const onShare = async () => {
     haptics.light();
@@ -134,14 +162,64 @@ export const FeedPostCard = memo(function FeedPostCard({
   };
 
   return (
-    <View style={{ backgroundColor: surface, marginBottom: 8, borderLeftWidth: 4, borderLeftColor: accent }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingTop: 12, paddingBottom: 8 }}>
+    <View
+      style={{
+        backgroundColor: colors.surface,
+        marginBottom: 14,
+        marginHorizontal: 16,
+        borderRadius: 24,
+        borderWidth: 1,
+        borderColor: isDark ? colors.border : theme.soft,
+        overflow: 'hidden',
+        boxShadow: shadow.sm,
+      }}
+    >
+      {/* ── Type ribbon ── */}
+      <LinearGradient
+        colors={theme.gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={{ paddingHorizontal: 14, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 10 }}
+      >
+        <Animated.View
+          entering={FadeInRight.duration(280)}
+          style={[
+            { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
+            badgeStyle,
+          ]}
+        >
+          <Ionicons name={theme.icon} size={16} color="#FFFFFF" />
+        </Animated.View>
+        <AppText
+          weight="bold"
+          color="#FFFFFF"
+          style={{ flex: 1, fontSize: 11.5, lineHeight: 14, letterSpacing: 1, textTransform: 'uppercase' }}
+          numberOfLines={1}
+        >
+          {theme.ribbon}
+        </AppText>
+        {eventBadge ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.22)', paddingHorizontal: 9, paddingVertical: 4, borderRadius: 10 }}>
+            <AppText weight="bold" color="#FFFFFF" style={{ fontSize: 10.5, lineHeight: 13, letterSpacing: 0.6 }}>
+              {eventBadge.month}
+            </AppText>
+            <AppText weight="extrabold" color="#FFFFFF" style={{ fontSize: 14, lineHeight: 16 }}>
+              {eventBadge.day}
+            </AppText>
+          </View>
+        ) : post.pinned ? (
+          <Ionicons name="pin" size={15} color="#FFFFFF" />
+        ) : null}
+      </LinearGradient>
+
+      {/* ── Author ── */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingTop: 12, paddingBottom: 8 }}>
         <View
           style={{
             width: 40,
             height: 40,
             borderRadius: 20,
-            backgroundColor: '#1877f2',
+            backgroundColor: theme.gradient[1],
             alignItems: 'center',
             justifyContent: 'center',
             overflow: 'hidden',
@@ -150,32 +228,28 @@ export const FeedPostCard = memo(function FeedPostCard({
           {post.author_avatar ? (
             <Image source={{ uri: post.author_avatar }} style={{ width: 40, height: 40 }} contentFit="cover" />
           ) : (
-            <ThemedText variant="caption" style={{ color: '#ffffff', fontWeight: '700' }}>
+            <AppText weight="bold" color="#FFFFFF" style={{ fontSize: 13 }}>
               {initialsFromName(sender)}
-            </ThemedText>
+            </AppText>
           )}
         </View>
         <View style={{ flex: 1, marginLeft: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <ThemedText variant="body" style={{ color: text, fontWeight: '700', flexShrink: 1 }} numberOfLines={1}>
+            <AppText variant="label" weight="bold" numberOfLines={1} style={{ flexShrink: 1 }}>
               {sender}
-            </ThemedText>
-            {post.pinned ? <Ionicons name="pin" size={12} color="#f7b928" /> : null}
+            </AppText>
+            {post.pinned ? <Ionicons name="pin" size={12} color={colors.warning} /> : null}
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-            <ThemedText variant="tiny" style={{ color: muted }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2, flexShrink: 1 }}>
+            <AppText variant="caption" tone="muted" numberOfLines={1}>
               {relativeTime(post.published_at ?? post.created_at)}
-            </ThemedText>
-            <ThemedText variant="tiny" style={{ color: muted }}>
-              ·
-            </ThemedText>
-            <ThemedText variant="tiny" style={{ color: muted }}>
-              {CATEGORY_LABELS[post.category] ?? post.category}
-            </ThemedText>
+            </AppText>
             {post.scope === 'course_specific' ? (
-              <ThemedText variant="tiny" style={{ color: muted }}>
-                · {post.course_code || 'Course'}
-              </ThemedText>
+              <TintChip
+                label={post.course_code || 'Course'}
+                color={theme.onSoft}
+                bg={theme.soft}
+              />
             ) : null}
           </View>
         </View>
@@ -186,53 +260,119 @@ export const FeedPostCard = memo(function FeedPostCard({
         ) : null}
       </View>
 
-      <View style={{ paddingHorizontal: 12, paddingBottom: 10 }}>
+      {/* ── Body ── */}
+      <View style={{ paddingHorizontal: 14, paddingBottom: 10 }}>
         {post.title ? (
-          <ThemedText variant="subheading" style={{ color: text, marginBottom: 4, fontWeight: '700' }}>
+          <AppText variant="subheading" style={{ marginBottom: 4 }} numberOfLines={2}>
             {post.title}
-          </ThemedText>
+          </AppText>
         ) : null}
-        <ThemedText variant="body" style={{ color: text, lineHeight: 22 }}>
+        <AppText tone="secondary" style={{ lineHeight: 22 }}>
           {bodyText}
-        </ThemedText>
+        </AppText>
         {longBody ? (
           <TouchableOpacity onPress={() => setExpanded((v) => !v)} hitSlop={6}>
-            <ThemedText variant="caption" style={{ color: muted, marginTop: 4, fontWeight: '600' }}>
+            <AppText variant="caption" weight="bold" color={theme.onSoft} style={{ marginTop: 5 }}>
               {expanded ? 'See less' : 'See more'}
-            </ThemedText>
+            </AppText>
           </TouchableOpacity>
         ) : null}
         {post.tags.length > 0 ? (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 9 }}>
             {post.tags.slice(0, 4).map((tag) => (
-              <ThemedText key={tag} variant="tiny" style={{ color: '#1877f2', fontWeight: '600' }}>
-                #{tag}
-              </ThemedText>
+              <TintChip key={tag} label={`#${tag}`} color={theme.onSoft} bg={theme.soft} />
             ))}
           </View>
         ) : null}
-        {post.category === 'event' ? (
-          <View style={{ marginTop: 12, padding: 12, borderRadius: 14, backgroundColor: isDark ? '#2e1065' : '#f5f3ff', flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <Ionicons name="calendar" size={22} color="#7c3aed" />
-            <View><ThemedText variant="tiny" style={{ color: '#7c3aed', fontWeight: '800' }}>EVENT DETAILS</ThemedText><ThemedText variant="caption" style={{ color: text, marginTop: 2 }}>{String(post.metadata.start_date || 'Date to be announced')}{post.metadata.start_time ? ` at ${String(post.metadata.start_time)}` : ''}{post.metadata.location ? ` · ${String(post.metadata.location)}` : ''}</ThemedText></View>
-          </View>
+
+        {/* ── Type-specific detail panel ── */}
+        {hasDetail ? (
+          <Animated.View
+            entering={FadeInRight.duration(300).delay(60)}
+            style={{
+              marginTop: 12,
+              padding: 12,
+              borderRadius: 16,
+              backgroundColor: theme.soft,
+              borderLeftWidth: 3,
+              borderLeftColor: theme.accent,
+              gap: 8,
+            }}
+          >
+            {post.category === 'event' ? (
+              <>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Ionicons name="calendar" size={15} color={theme.onSoft} />
+                  <AppText weight="bold" color={theme.onSoft} style={{ fontSize: 11, lineHeight: 14, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                    Event details
+                  </AppText>
+                </View>
+                <DetailRow
+                  icon="time-outline"
+                  color={theme.onSoft}
+                  bg={isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF'}
+                  text={`${String(meta.start_date || 'Date to be announced')}${meta.start_time ? ` at ${String(meta.start_time)}` : ''}`}
+                />
+                {meta.location ? (
+                  <DetailRow icon="location-outline" color={theme.onSoft} bg={isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF'} text={String(meta.location)} />
+                ) : null}
+              </>
+            ) : post.category === 'opportunity' ? (
+              <>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Ionicons name="rocket-outline" size={15} color={theme.onSoft} />
+                  <AppText weight="bold" color={theme.onSoft} style={{ fontSize: 11, lineHeight: 14, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                    Opportunity
+                  </AppText>
+                </View>
+                <DetailRow
+                  icon="hourglass-outline"
+                  color={theme.onSoft}
+                  bg={isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF'}
+                  text={`Apply by ${String(meta.application_deadline || 'deadline not set')}`}
+                />
+                {meta.external_link ? (
+                  <TouchableOpacity onPress={() => void Linking.openURL(String(meta.external_link))} accessibilityRole="link">
+                    <DetailRow icon="open-outline" color={theme.onSoft} bg={isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF'} text="View application link" />
+                  </TouchableOpacity>
+                ) : null}
+              </>
+            ) : post.category === 'achievement' ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Animated.View style={[{ width: 34, height: 34, borderRadius: 17, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF', alignItems: 'center', justifyContent: 'center' }, badgeStyle]}>
+                  <Ionicons name="trophy" size={17} color={theme.accent} />
+                </Animated.View>
+                <View style={{ flexShrink: 1 }}>
+                  <AppText weight="bold" color={theme.onSoft} style={{ fontSize: 12, lineHeight: 15 }}>
+                    Celebrating a campus win
+                  </AppText>
+                  {meta.achievement_date ? (
+                    <AppText variant="caption" tone="muted" numberOfLines={1}>
+                      {String(meta.achievement_date)}
+                    </AppText>
+                  ) : null}
+                </View>
+              </View>
+            ) : (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF', alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="megaphone" size={17} color={theme.accent} />
+                </View>
+                <AppText weight="bold" color={theme.onSoft} style={{ fontSize: 12, lineHeight: 15, flexShrink: 1 }}>
+                  Official campus announcement
+                </AppText>
+              </View>
+            )}
+          </Animated.View>
         ) : null}
-        {post.category === 'opportunity' ? (
-          <View style={{ marginTop: 12, padding: 12, borderRadius: 14, backgroundColor: isDark ? '#083344' : '#ecfeff', flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <Ionicons name="rocket" size={22} color="#0891b2" />
-            <View><ThemedText variant="tiny" style={{ color: '#0891b2', fontWeight: '800' }}>OPPORTUNITY</ThemedText><ThemedText variant="caption" style={{ color: text, marginTop: 2 }}>Apply by {String(post.metadata.application_deadline || 'deadline not set')}</ThemedText></View>
+        {post.category === 'academic' && post.course_code ? (
+          <View style={{ marginTop: 10 }}>
+            <TintChip label={`📘 ${post.course_code}`} color={theme.onSoft} bg={theme.soft} />
           </View>
-        ) : null}
-        {post.category === 'achievement' ? (
-          <View style={{ marginTop: 12, padding: 12, borderRadius: 14, backgroundColor: isDark ? '#451a03' : '#fffbeb', flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <Ionicons name="trophy" size={22} color="#d97706" /><ThemedText variant="caption" style={{ color: isDark ? '#fde68a' : '#92400e', fontWeight: '800' }}>CELEBRATING A CAMPUS WIN · {String(post.metadata.achievement_date || '')}</ThemedText>
-          </View>
-        ) : null}
-        {post.category === 'official_announcement' ? (
-          <View style={{ marginTop: 12, padding: 10, borderRadius: 12, backgroundColor: isDark ? '#450a0a' : '#fef2f2', flexDirection: 'row', alignItems: 'center', gap: 8 }}><Ionicons name="megaphone" size={18} color="#dc2626" /><ThemedText variant="tiny" style={{ color: '#dc2626', fontWeight: '800' }}>OFFICIAL CAMPUS ANNOUNCEMENT</ThemedText></View>
         ) : null}
       </View>
 
+      {/* ── Media ── */}
       {images.length === 1 ? (
         <TouchableOpacity activeOpacity={0.9} onPress={() => onMediaPress?.(post, images[0])}>
           <Image source={{ uri: images[0].url }} style={{ width: '100%', aspectRatio: 4 / 3 }} contentFit="cover" />
@@ -241,7 +381,11 @@ export const FeedPostCard = memo(function FeedPostCard({
       {images.length > 1 ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
           {images.slice(0, 4).map((item, index) => (
-            <TouchableOpacity key={item.id || `${item.url}-${index}`} onPress={() => onMediaPress?.(post, item)} style={{ width: images.length === 3 && index === 0 ? '100%' : '50%' }}>
+            <TouchableOpacity
+              key={item.id || `${item.url}-${index}`}
+              onPress={() => onMediaPress?.(post, item)}
+              style={{ width: images.length === 3 && index === 0 ? '100%' : '50%' }}
+            >
               <Image source={{ uri: item.url }} style={{ width: '100%', aspectRatio: images.length === 3 && index === 0 ? 16 / 9 : 1 }} contentFit="cover" />
             </TouchableOpacity>
           ))}
@@ -250,54 +394,53 @@ export const FeedPostCard = memo(function FeedPostCard({
       {videoAttachment ? (
         <View style={{ backgroundColor: '#080b12' }}>
           <VideoView player={videoPlayer} style={{ width: '100%', aspectRatio: 16 / 9 }} nativeControls />
-          <TouchableOpacity onPress={() => onMediaPress?.(post, videoAttachment)} style={{ paddingHorizontal: 12, paddingVertical: 9, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Ionicons name="expand-outline" size={15} color="#ffffff" />
-            <ThemedText variant="tiny" style={{ color: '#dbeafe', fontWeight: '700' }}>Open full view</ThemedText>
+          <TouchableOpacity onPress={() => onMediaPress?.(post, videoAttachment)} style={{ paddingHorizontal: 14, paddingVertical: 9, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Ionicons name="expand-outline" size={15} color="#FFFFFF" />
+            <AppText weight="bold" color="#DBEAFE" style={{ fontSize: 11.5, lineHeight: 14 }}>
+              Open full view
+            </AppText>
           </TouchableOpacity>
         </View>
       ) : null}
       {documentAttachments.map((attachment) => (
-        <TouchableOpacity key={attachment.id || attachment.url} onPress={() => void Linking.openURL(attachment.url)} style={{ margin: 12, padding: 14, borderRadius: 14, backgroundColor: isDark ? '#172554' : '#eff6ff', flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <Ionicons name="document-text-outline" size={30} color="#2563eb" />
-          <View style={{ flex: 1 }}><ThemedText variant="body" style={{ color: text, fontWeight: '700' }}>{attachment.label || 'Open document'}</ThemedText><ThemedText variant="tiny" style={{ color: muted }}>Tap to open document</ThemedText></View>
+        <TouchableOpacity
+          key={attachment.id || attachment.url}
+          onPress={() => void Linking.openURL(attachment.url)}
+          style={{ margin: 14, marginBottom: 0, padding: 14, borderRadius: 16, backgroundColor: theme.soft, flexDirection: 'row', alignItems: 'center', gap: 10 }}
+        >
+          <Ionicons name="document-text-outline" size={28} color={theme.accent} />
+          <View style={{ flex: 1 }}>
+            <AppText weight="bold" numberOfLines={1}>
+              {attachment.label || 'Open document'}
+            </AppText>
+            <AppText variant="caption" tone="muted">
+              Tap to open document
+            </AppText>
+          </View>
         </TouchableOpacity>
       ))}
 
-      {(likeCount > 0 || post.comments_count > 0) && (
-        <View
-          style={{
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            paddingHorizontal: 12,
-            paddingVertical: 10,
-          }}
-        >
+      {/* ── Counts ── */}
+      {likeCount > 0 || post.comments_count > 0 ? (
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <View
-              style={{
-                width: 18,
-                height: 18,
-                borderRadius: 9,
-                backgroundColor: liked || likeCount > 0 ? '#e41e3f' : divider,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Ionicons name="heart" size={10} color="#ffffff" />
+            <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: liked || likeCount > 0 ? colors.danger : colors.surfaceMuted, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="heart" size={10} color="#FFFFFF" />
             </View>
-            <ThemedText variant="caption" style={{ color: muted }}>
+            <AppText variant="caption" tone="muted">
               {likeCount}
-            </ThemedText>
+            </AppText>
           </View>
-          <ThemedText variant="caption" style={{ color: muted }}>
+          <AppText variant="caption" tone="muted">
             {post.comments_count} comments
-          </ThemedText>
+          </AppText>
         </View>
-      )}
+      ) : null}
 
-      <View style={{ height: 1, backgroundColor: divider, marginHorizontal: 12 }} />
+      <View style={{ height: 1, backgroundColor: colors.border, marginHorizontal: 14 }} />
 
-      <View style={{ flexDirection: 'row', paddingHorizontal: 4, paddingVertical: 4 }}>
+      {/* ── Actions ── */}
+      <View style={{ flexDirection: 'row', paddingHorizontal: 6, paddingVertical: 4 }}>
         {canReact && post.allow_reactions ? (
           <TouchableOpacity
             accessibilityRole="button"
@@ -306,18 +449,18 @@ export const FeedPostCard = memo(function FeedPostCard({
             style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10 }}
           >
             <Animated.View style={heartStyle}>
-              <Ionicons name={liked ? 'heart' : 'heart-outline'} size={20} color={liked ? '#e41e3f' : muted} />
+              <Ionicons name={liked ? 'heart' : 'heart-outline'} size={20} color={liked ? colors.danger : muted} />
             </Animated.View>
-            <ThemedText variant="caption" style={{ color: liked ? '#e41e3f' : muted, fontWeight: '700' }}>
+            <AppText weight="bold" color={liked ? colors.danger : muted} style={{ fontSize: 13 }}>
               Like
-            </ThemedText>
+            </AppText>
           </TouchableOpacity>
         ) : (
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10 }}>
             <Ionicons name="heart-outline" size={20} color={muted} />
-            <ThemedText variant="caption" style={{ color: muted, fontWeight: '700' }}>
+            <AppText weight="bold" tone="muted" style={{ fontSize: 13 }}>
               Like
-            </ThemedText>
+            </AppText>
           </View>
         )}
 
@@ -332,16 +475,16 @@ export const FeedPostCard = memo(function FeedPostCard({
             style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10 }}
           >
             <Ionicons name="chatbubble-outline" size={19} color={muted} />
-            <ThemedText variant="caption" style={{ color: muted, fontWeight: '700' }}>
+            <AppText weight="bold" tone="muted" style={{ fontSize: 13 }}>
               Comment
-            </ThemedText>
+            </AppText>
           </TouchableOpacity>
         ) : (
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10 }}>
             <Ionicons name="chatbubble-outline" size={19} color={muted} />
-            <ThemedText variant="caption" style={{ color: muted, fontWeight: '700' }}>
+            <AppText weight="bold" tone="muted" style={{ fontSize: 13 }}>
               Comment
-            </ThemedText>
+            </AppText>
           </View>
         )}
 
@@ -352,9 +495,9 @@ export const FeedPostCard = memo(function FeedPostCard({
           style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10 }}
         >
           <Ionicons name="share-outline" size={19} color={muted} />
-          <ThemedText variant="caption" style={{ color: muted, fontWeight: '700' }}>
+          <AppText weight="bold" tone="muted" style={{ fontSize: 13 }}>
             Share
-          </ThemedText>
+          </AppText>
         </TouchableOpacity>
       </View>
     </View>

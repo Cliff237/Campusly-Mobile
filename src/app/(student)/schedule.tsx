@@ -6,7 +6,7 @@ import { DayTimeline } from '@/components/student/schedule/DayTimeline';
 import { AttendanceHistory } from '@/components/student/schedule/AttendanceHistory';
 import { ActiveSessionBanner } from '@/components/student/schedule/ActiveSessionBanner';
 import { AttendanceCheckinModal } from '@/components/student/schedule/AttendanceCheckinModal';
-import { ThemedText } from '@/ui/ThemedText';
+import { AppText } from '@/ui/AppText';
 import { PermissionGate } from '@/components/student/shared/PermissionGate';
 import { fetchActiveAttendanceSessions } from '@/lib/api/attendance';
 import { fetchStudentDashboard } from '@/lib/api/student';
@@ -136,7 +136,7 @@ export default function ScheduleScreen() {
       console.log('[Schedule] Starting scanForAttendance');
       cleanup = await scanForAttendance((device) => {
         console.log('[Schedule] Device detected in scan');
-        void finish(device.rssi);
+        void finish(device.rssi ?? undefined);
       });
       scanCleanup.current = cleanup;
       
@@ -181,7 +181,7 @@ export default function ScheduleScreen() {
       <ScrollView
         className="flex-1 bg-bg dark:bg-bg-dark"
         contentContainerStyle={{ paddingTop: 16, paddingBottom: 40, flexGrow: 1 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#4f46e5" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#5B3FD1" />}
       >
         <WeekSelector selected={selected} onSelect={setSelected} />
         <DayTimeline events={events} />
@@ -194,7 +194,7 @@ export default function ScheduleScreen() {
           />
         ))}
         <PermissionGate permission="view_attendance_history">
-          <ThemedText variant="subheading" className="px-5 mb-2">Attendance history</ThemedText>
+          <AppText variant="subheading" style={{ paddingHorizontal: 20, marginBottom: 10, marginTop: 6 }}>Attendance history</AppText>
           <AttendanceHistory records={records} />
         </PermissionGate>
       </ScrollView>

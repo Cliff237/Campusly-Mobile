@@ -1,10 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, RefreshControl, ScrollView, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColorScheme } from 'nativewind';
 import { ThemedText } from '@/ui/ThemedText';
-import { EmptyStateAnimation } from '@/ui/EmptyStateAnimation';
+import { AppText } from '@/ui/AppText';
+import { EmptyState } from '@/ui/EmptyState';
+import { Sheet } from '@/ui/Sheet';
+import { useAppTheme } from '@/ui/useAppTheme';
 import { showToast } from '@/ui/Toast';
+import { useModalPresence } from '@/ui/modalStore';
+import { haptics } from '@/lib/haptics';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { createMarkSubmission, deleteMarkSubmission, fetchClassMarkSubmissions, fetchTeacherClasses, updateMarkSubmission } from '@/lib/api/teacherMarks';
 import { fetchAttendanceRoster, fetchAttendanceSessions } from '@/lib/api/attendance';
@@ -35,6 +42,8 @@ export default function TeacherMarksScreen() {
   const { accessToken } = useAuth();
   const { colorScheme } = useColorScheme();
   const dark = colorScheme === 'dark';
+  const { colors, shadow } = useAppTheme();
+  const isDarkSoft = colorScheme === 'dark' ? colors.surfaceMuted : colors.brandSoft;
   
   const [classes, setClasses] = useState<TeacherClass[]>([]);
   const [selected, setSelected] = useState<TeacherClass | null>(null);
@@ -47,6 +56,9 @@ export default function TeacherMarksScreen() {
   const [viewDetail, setViewDetail] = useState<TeacherMarkSubmission | null>(null);
   const [typeManager, setTypeManager] = useState(false);
   const [filterType, setFilterType] = useState<MarkAssessmentType | 'all'>('all');
+  // One dropdown instead of a horizontal class strip — fewer items on screen.
+  const [pickerOpen, setPickerOpen] = useState(false);
+  useModalPresence(composer || editing != null || viewDetail != null || typeManager || pickerOpen);
 
   const load = useCallback(async (refresh = false) => {
     if (!accessToken) return;
@@ -127,208 +139,200 @@ export default function TeacherMarksScreen() {
   const stats = calculateStats();
 
   return (
-    <ScrollView 
-      className="flex-1 bg-mist dark:bg-bg-dark" 
+    <ScrollView
+      style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={{ padding: 20, paddingBottom: 44 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#0f766e" />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand} />}
     >
-      {/* Header */}
-      <View className="flex-row justify-between items-center mb-6">
-        <View>
-          <ThemedText variant="display">Marks</ThemedText>
-          <ThemedText variant="caption" className="text-text-muted dark:text-text-muted-dark mt-1">
-            Manage assessments and student grades
-          </ThemedText>
+      {/* ── Header ── */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <View style={{ flex: 1, paddingRight: 12 }}>
+          <AppText variant="display">Marks</AppText>
+          <AppText variant="caption" tone="muted" style={{ marginTop: 4 }}>Manage assessments and student grades</AppText>
         </View>
-        <View className="flex-row gap-2">
+        <View style={{ flexDirection: 'row', gap: 10 }}>
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel="Manage assessment types"
             onPress={() => setTypeManager(true)}
-            className="w-12 h-12 rounded-2xl bg-surface dark:bg-surface-dark border border-border dark:border-border-dark items-center justify-center"
+            style={{ width: 46, height: 46, borderRadius: 16, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', boxShadow: shadow.sm }}
           >
-            <Ionicons name="options-outline" size={24} color="#64748b" />
+            <Ionicons name="options-outline" size={21} color={colors.textMuted} />
           </TouchableOpacity>
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel="Create mark submission"
             onPress={() => setComposer(true)}
-            className="w-12 h-12 rounded-2xl bg-ocean items-center justify-center shadow-lg"
+            style={{ width: 46, height: 46, borderRadius: 16, overflow: 'hidden', boxShadow: shadow.brand ?? shadow.md }}
           >
-            <Ionicons name="add" size={26} color="#fff" />
+            <LinearGradient colors={colors.heroGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 46, height: 46, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="add" size={25} color="#FFFFFF" />
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Statistics Dashboard */}
+      {/* ── Class dropdown ── */}
+      {classes.length ? (
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={`Selected class ${selected?.course_name ?? ''}. Tap to change class.`}
+          onPress={() => { haptics.light(); setPickerOpen(true); }}
+          style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 18, padding: 14, marginBottom: 16, boxShadow: shadow.sm }}
+        >
+          <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: isDarkSoft, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="school" size={19} color={colors.brand} />
+          </View>
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <AppText weight="bold" numberOfLines={1}>{selected?.course_name ?? 'Select a class'}</AppText>
+            <AppText variant="caption" tone="muted" style={{ marginTop: 2 }}>
+              {selected ? `${selected.course_code} · Section ${selected.section} · ${selected.enrolled_count} students` : 'Tap to browse your classes'}
+            </AppText>
+          </View>
+          <Ionicons name="chevron-down" size={18} color={colors.textMuted} />
+        </TouchableOpacity>
+      ) : null}
+
+      {/* ── Statistics ── */}
       {stats && (
-        <View className="flex-row gap-3 mb-6">
-          <View className="flex-1 rounded-2xl bg-surface dark:bg-surface-dark border border-border dark:border-border-dark p-4">
-            <ThemedText variant="tiny" className="text-text-muted dark:text-text-muted-dark">Class Avg</ThemedText>
-            <ThemedText variant="heading" className="text-ocean mt-1">{stats.classAverage}%</ThemedText>
-          </View>
-          <View className="flex-1 rounded-2xl bg-surface dark:bg-surface-dark border border-border dark:border-border-dark p-4">
-            <ThemedText variant="tiny" className="text-text-muted dark:text-text-muted-dark">Assessments</ThemedText>
-            <ThemedText variant="heading" className="text-ink mt-1">{stats.totalAssessments}</ThemedText>
-          </View>
-          <View className="flex-1 rounded-2xl bg-surface dark:bg-surface-dark border border-border dark:border-border-dark p-4">
-            <ThemedText variant="tiny" className="text-text-muted dark:text-text-muted-dark">Students</ThemedText>
-            <ThemedText variant="heading" className="text-berry mt-1">{stats.totalStudents}</ThemedText>
-          </View>
+        <View style={{ flexDirection: 'row', gap: 12, marginBottom: 18 }}>
+          <StatTile label="Class Avg" value={`${stats.classAverage}%`} tint={colors.brand} accent={isDarkSoft} />
+          <StatTile label="Assessments" value={String(stats.totalAssessments)} tint={colors.text} accent={isDarkSoft} />
+          <StatTile label="Students" value={String(stats.totalStudents)} tint={colors.danger} accent={isDarkSoft} />
         </View>
       )}
 
-      {/* Class Selector */}
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        className="mb-6"
-      >
-        <View className="flex-row gap-3">
-          {classes.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              onPress={() => void choose(item)}
-              className={`rounded-2xl px-5 py-4 border-2 ${
-                selected?.id === item.id 
-                  ? 'bg-ink border-ink' 
-                  : 'bg-surface dark:bg-surface-dark border-border dark:border-border-dark'
-              }`}
-            >
-              <ThemedText 
-                variant="body" 
-                className={selected?.id === item.id ? 'text-white font-bold' : ''}
-              >
-                {item.course_code}
-              </ThemedText>
-              <ThemedText 
-                variant="tiny" 
-                className={`mt-1 ${selected?.id === item.id ? 'text-slate-300' : 'text-text-muted dark:text-text-muted-dark'}`}
-              >
-                {item.section} · {item.enrolled_count} students
-              </ThemedText>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </ScrollView>
-
-      {/* Filter */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        className="mb-4"
-      >
-        <View className="flex-row gap-2">
+      {/* ── Type filter ── */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
+        <TouchableOpacity
+          onPress={() => setFilterType('all')}
+          style={{ paddingHorizontal: 15, paddingVertical: 8, borderRadius: 999, backgroundColor: filterType === 'all' ? colors.brand : colors.surface, borderWidth: 1, borderColor: filterType === 'all' ? colors.brand : colors.border }}
+        >
+          <AppText variant="caption" weight="bold" color={filterType === 'all' ? '#FFFFFF' : colors.textMuted}>All</AppText>
+        </TouchableOpacity>
+        {allTypes.map((type) => (
           <TouchableOpacity
-            onPress={() => setFilterType('all')}
-            className={`px-4 py-2 rounded-full ${filterType === 'all' ? 'bg-ocean' : 'bg-surface dark:bg-surface-dark border border-border dark:border-border-dark'}`}
+            key={type}
+            onPress={() => setFilterType(type)}
+            style={{ paddingHorizontal: 15, paddingVertical: 8, borderRadius: 999, backgroundColor: filterType === type ? colors.brand : colors.surface, borderWidth: 1, borderColor: filterType === type ? colors.brand : colors.border }}
           >
-            <ThemedText variant="tiny" className={filterType === 'all' ? 'text-white font-bold' : ''}>All</ThemedText>
+            <AppText variant="caption" weight="bold" color={filterType === type ? '#FFFFFF' : colors.textMuted}>{getTypeLabel(type, customTypes)}</AppText>
           </TouchableOpacity>
-          {allTypes.map((type) => (
-            <TouchableOpacity
-              key={type}
-              onPress={() => setFilterType(type)}
-              className={`px-4 py-2 rounded-full ${filterType === type ? 'bg-ocean' : 'bg-surface dark:bg-surface-dark border border-border dark:border-border-dark'}`}
-            >
-              <ThemedText variant="tiny" className={filterType === type ? 'text-white font-bold' : ''}>{getTypeLabel(type, customTypes)}</ThemedText>
-            </TouchableOpacity>
-          ))}
-        </View>
+        ))}
       </ScrollView>
 
-      {/* Loading State */}
+      {/* ── Loading / empty / list ── */}
       {loading ? (
-        <View className="py-20 items-center">
-          <ActivityIndicator color="#6846dc" size="large" />
-          <ThemedText variant="caption" className="text-text-muted dark:text-text-muted-dark mt-3">Loading marks...</ThemedText>
+        <View style={{ paddingTop: 70, alignItems: 'center' }}>
+          <ActivityIndicator color={colors.brand} size="large" />
+          <AppText variant="caption" tone="muted" style={{ marginTop: 10 }}>Loading marks...</AppText>
         </View>
       ) : !selected ? (
-        <EmptyStateAnimation 
-          icon="book-outline" 
-          title="No assigned courses" 
-          subtitle="Your assigned course sections will appear here." 
-        />
+        <EmptyState icon="book-outline" title="No assigned courses" message="Your assigned course sections will appear here." />
       ) : filteredSubmissions.length ? (
-        filteredSubmissions.map((submission) => {
+        filteredSubmissions.map((submission, index) => {
           const graded = submission.entries.length;
-          const average = graded 
+          const average = graded
             ? Math.round(submission.entries.reduce((sum, entry) => sum + percent(entry.final_score, submission.max_score), 0) / graded)
             : 0;
           const statusColor = STATUS_COLORS[submission.status] || '#64748b';
-          
+          const isExam = submission.assessment_type === 'exam';
+
           return (
-            <TouchableOpacity
-              key={submission.id}
-              onPress={() => setViewDetail(submission)}
-              className="rounded-3xl bg-surface dark:bg-surface-dark border border-border dark:border-border-dark p-5 mb-4 shadow-sm"
-            >
-              <View className="flex-row items-start">
-                <View className={`w-12 h-12 rounded-2xl items-center justify-center ${submission.assessment_type === 'exam' ? 'bg-berry-soft' : 'bg-ocean-soft'}`}>
-                  <Ionicons name={getTypeIcon(submission.assessment_type, customTypes)} size={24} color={submission.assessment_type === 'exam' ? '#ef4444' : '#6846dc'} />
+            <Animated.View key={submission.id} entering={FadeInDown.duration(280).delay(Math.min(index, 6) * 45)}>
+              <TouchableOpacity
+                onPress={() => setViewDetail(submission)}
+                style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 22, padding: 16, marginBottom: 12, boxShadow: shadow.sm }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                  <View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: isExam ? (dark ? colors.surfaceMuted : '#FDECEF') : isDarkSoft, alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name={getTypeIcon(submission.assessment_type, customTypes)} size={22} color={isExam ? colors.danger : colors.brand} />
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 13 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 }}>
+                      <AppText weight="bold" numberOfLines={1} style={{ flexShrink: 1, fontSize: 15.5 }}>{submission.assessment_name}</AppText>
+                      <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: `${statusColor}1F` }}>
+                        <AppText variant="caption" weight="bold" style={{ color: statusColor, fontSize: 10, lineHeight: 13, textTransform: 'uppercase' }}>
+                          {submission.status.replace('_', ' ')}
+                        </AppText>
+                      </View>
+                    </View>
+                    <AppText variant="caption" tone="muted" style={{ marginTop: 3 }}>
+                      {getTypeLabel(submission.assessment_type, customTypes)} · Max: {submission.max_score}
+                    </AppText>
+                  </View>
+                  <View style={{ alignItems: 'flex-end', marginLeft: 10 }}>
+                    <AppText variant="heading" color={colors.brand} style={{ fontSize: 21, lineHeight: 26 }}>{average}%</AppText>
+                    <AppText variant="caption" tone="muted" style={{ fontSize: 11, lineHeight: 14 }}>avg</AppText>
+                  </View>
                 </View>
-                <View className="flex-1 ml-4">
-                  <View className="flex-row items-center gap-2">
-                    <ThemedText variant="subheading">{submission.assessment_name}</ThemedText>
-                    <View className={`px-2 py-0.5 rounded-full`} style={{ backgroundColor: `${statusColor}20` }}>
-                      <ThemedText variant="tiny" style={{ color: statusColor }}>
-                        {submission.status.replace('_', ' ')}
-                      </ThemedText>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 13, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                      <Ionicons name="people-outline" size={15} color={colors.textMuted} />
+                      <AppText variant="caption" tone="muted">{graded}/{selected.enrolled_count} graded</AppText>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                      <Ionicons name="calendar-outline" size={15} color={colors.textMuted} />
+                      <AppText variant="caption" tone="muted">{new Date(submission.created_at).toLocaleDateString()}</AppText>
                     </View>
                   </View>
-                  <ThemedText variant="tiny" className="text-text-muted dark:text-text-muted-dark mt-1">
-                    {getTypeLabel(submission.assessment_type, customTypes)} · Max: {submission.max_score}
-                  </ThemedText>
-                </View>
-                <View className="items-end ml-3">
-                  <ThemedText variant="heading" className="text-ocean">{average}%</ThemedText>
-                  <ThemedText variant="tiny" className="text-text-muted dark:text-text-muted-dark">avg</ThemedText>
-                </View>
-              </View>
-              <View className="flex-row items-center justify-between mt-4 pt-3 border-t border-border dark:border-border-dark">
-                <View className="flex-row items-center gap-4">
-                  <View className="flex-row items-center">
-                    <Ionicons name="people-outline" size={16} color="#64748b" />
-                    <ThemedText variant="caption" className="ml-1 text-text-muted dark:text-text-muted-dark">
-                      {graded}/{selected.enrolled_count} graded
-                    </ThemedText>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    {submission.status === 'pending_approval' && (
+                      <TouchableOpacity
+                        onPress={() => setEditing(submission)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Edit ${submission.assessment_name}`}
+                        style={{ width: 32, height: 32, borderRadius: 11, backgroundColor: isDarkSoft, alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <Ionicons name="create-outline" size={17} color={colors.brand} />
+                      </TouchableOpacity>
+                    )}
+                    {submission.status !== 'approved' && (
+                      <TouchableOpacity
+                        onPress={() => removeAssessment(submission)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Delete ${submission.assessment_name}`}
+                        style={{ width: 32, height: 32, borderRadius: 11, backgroundColor: dark ? colors.surfaceMuted : '#FDECEF', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <Ionicons name="trash-outline" size={17} color={colors.danger} />
+                      </TouchableOpacity>
+                    )}
                   </View>
-                  <View className="flex-row items-center">
-                    <Ionicons name="calendar-outline" size={16} color="#64748b" />
-                    <ThemedText variant="caption" className="ml-1 text-text-muted dark:text-text-muted-dark">
-                      {new Date(submission.created_at).toLocaleDateString()}
-                    </ThemedText>
-                  </View>
                 </View>
-                <View className="flex-row gap-2">
-                  {submission.status === 'pending_approval' && (
-                    <TouchableOpacity
-                      onPress={() => setEditing(submission)}
-                      className="w-8 h-8 rounded-xl bg-ocean-soft items-center justify-center"
-                    >
-                      <Ionicons name="create-outline" size={18} color="#6846dc" />
-                    </TouchableOpacity>
-                  )}
-                  {submission.status !== 'approved' && (
-                    <TouchableOpacity
-                      onPress={() => removeAssessment(submission)}
-                      className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-900/20 items-center justify-center"
-                    >
-                      <Ionicons name="trash-outline" size={18} color="#ef4444" />
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-            </TouchableOpacity>
+              </TouchableOpacity>
+            </Animated.View>
           );
         })
       ) : (
-        <EmptyStateAnimation 
-          icon="ribbon-outline" 
-          title="No mark submissions" 
-          subtitle={`No ${filterType === 'all' ? '' : TYPE_LABELS[filterType as MarkAssessmentType] + ' '}assessments found for this class.`}
+        <EmptyState
+          icon="ribbon-outline"
+          title="No mark submissions"
+          message={`No ${filterType === 'all' ? '' : TYPE_LABELS[filterType as MarkAssessmentType] + ' '}assessments found for this class.`}
         />
       )}
+
+      {/* ── Class picker sheet ── */}
+      <Sheet visible={pickerOpen} onClose={() => setPickerOpen(false)} title="Select a class" scroll>
+        {classes.map((item) => {
+          const isSelected = selected?.id === item.id;
+          return (
+            <TouchableOpacity
+              key={item.id}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isSelected }}
+              onPress={() => { setPickerOpen(false); void choose(item); }}
+              style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 14, borderRadius: 16, marginBottom: 8, backgroundColor: isSelected ? (dark ? colors.surfaceMuted : colors.brandSoft) : colors.background, borderWidth: 1, borderColor: isSelected ? colors.brand : colors.border }}
+            >
+              <View style={{ flex: 1 }}>
+                <AppText weight={isSelected ? 'bold' : 'semibold'} numberOfLines={1}>{item.course_name}</AppText>
+                <AppText variant="caption" tone="muted" style={{ marginTop: 2 }}>{item.course_code} · {item.section} · {item.enrolled_count} students</AppText>
+              </View>
+              {isSelected ? <Ionicons name="checkmark-circle" size={20} color={colors.brand} /> : <Ionicons name="ellipse-outline" size={20} color={colors.textMuted} />}
+            </TouchableOpacity>
+          );
+        })}
+      </Sheet>
 
       {/* Compose Modal */}
       <GradeComposer
@@ -370,6 +374,18 @@ export default function TeacherMarksScreen() {
         onUpdated={() => void load(true)}
       />
     </ScrollView>
+  );
+}
+
+/** Compact statistic tile used in the overview row. */
+function StatTile({ label, value, tint, accent }: { label: string; value: string; tint: string; accent: string }) {
+  const { colors, shadow } = useAppTheme();
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 18, padding: 13, boxShadow: shadow.sm }}>
+      <AppText variant="caption" tone="muted" style={{ fontSize: 11, lineHeight: 14 }}>{label}</AppText>
+      <AppText variant="heading" color={tint} style={{ marginTop: 4, fontSize: 20, lineHeight: 25 }}>{value}</AppText>
+      <View style={{ height: 3, width: 26, borderRadius: 2, backgroundColor: accent, marginTop: 8 }} />
+    </View>
   );
 }
 

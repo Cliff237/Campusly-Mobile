@@ -12,6 +12,7 @@ import {
 import { useColorScheme } from 'nativewind';
 import { ThemedText } from '@/ui/ThemedText';
 import { showToast } from '@/ui/Toast';
+import { useModalPresence } from '@/ui/modalStore';
 import { haptics } from '@/lib/haptics';
 import { relativeTime } from '@/lib/format';
 import { addPostComment, fetchPostComments } from '@/lib/api/student';
@@ -34,6 +35,7 @@ export function CommentsSheet({ postId, visible, canComment, onClose, onCommente
   const [loading, setLoading] = useState(false);
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
+  useModalPresence(visible);
 
   useEffect(() => {
     if (!visible || !postId || !accessToken) return;

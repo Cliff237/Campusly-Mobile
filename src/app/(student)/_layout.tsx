@@ -5,14 +5,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from 'nativewind';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { useModalsOpen } from '@/ui/modalStore';
 import { TopNav } from '@/components/student/shared/TopNav';
 
 export default function StudentTabLayout() {
   const { currentMembership, isReady } = useAuth();
   const router = useRouter();
-  const segments = useSegments();
+  // expo-router types segments as a 1-tuple; widen for length checks.
+  const segments = useSegments() as readonly string[];
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const modalsOpen = useModalsOpen();
   const activeColor = '#5b3fd1';
   const inactiveColor = isDark ? '#64748b' : '#94a3b8';
   const isRoleHome = segments.length === 2 && segments[0] === '(student)';
@@ -46,13 +49,15 @@ export default function StudentTabLayout() {
       <Tabs
         screenOptions={{
           headerShown: false,
-          tabBarStyle: {
-            backgroundColor: isDark ? '#1e293b' : '#ffffff',
-            borderTopColor: isDark ? '#334155' : '#e2e8f0',
-            paddingBottom: 8,
-            paddingTop: 8,
-            height: 85,
-          },
+          tabBarStyle: modalsOpen
+            ? { display: 'none' }
+            : {
+                backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                borderTopColor: isDark ? '#334155' : '#e2e8f0',
+                paddingBottom: 8,
+                paddingTop: 8,
+                height: 85,
+              },
           tabBarActiveTintColor: activeColor,
           tabBarInactiveTintColor: inactiveColor,
           tabBarLabelStyle: {
