@@ -169,7 +169,7 @@ export default function ScheduleScreen() {
     await markSessionPresent(session, false);
   };
 
-  const bottomOffset = useBottomTabOffset(28);
+  const bottomOffset = useBottomTabOffset(36);
 
   const handleManualCheckIn = async (session: ActiveAttendanceSession) => {
     console.log('[Schedule] Manual check-in requested for session:', session.session_id);

@@ -19,7 +19,7 @@ import { showToast } from '@/ui/Toast';
 
 export default function MarksScreen() {
   const { colors, isDark } = useAppTheme();
-  const bottomOffset = useBottomTabOffset(28);
+  const bottomOffset = useBottomTabOffset(36);
   const { accessToken, currentMembership } = useAuth();
   const [dashboard, setDashboard] = useState<StudentDashboard | null>(null);
   const [refreshing, setRefreshing] = useState(false);

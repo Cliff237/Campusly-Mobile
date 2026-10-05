@@ -3,6 +3,7 @@ import { View, TouchableOpacity, Modal, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/ui/ThemedText';
 import { GradientButton } from '@/ui/GradientButton';
+import { useBottomTabOffset } from '@/ui/tabBarOptions';
 import { haptics } from '@/lib/haptics';
 import { previewMembershipOtp, redeemMembershipOtp } from '@/lib/api/discover/memberships';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -18,6 +19,7 @@ export function OtpFab({ onRedeemSuccess }: OtpFabProps) {
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<any>(null);
   const { accessToken } = useAuth();
+  const bottomOffset = useBottomTabOffset(14);
 
   const handlePreview = async () => {
     if (code.length < 6) {
@@ -60,8 +62,9 @@ export function OtpFab({ onRedeemSuccess }: OtpFabProps) {
       <TouchableOpacity
         activeOpacity={0.8}
         onPress={() => { haptics.light(); setVisible(true); }}
-        className="absolute bottom-24 right-5 w-16 h-16 rounded-full items-center justify-center shadow-xl z-20"
+        className="absolute right-5 w-16 h-16 rounded-full items-center justify-center shadow-xl z-20"
         style={{
+          bottom: bottomOffset,
           backgroundColor: '#4f46e5',
           shadowColor: '#4f46e5',
           shadowOffset: { width: 0, height: 6 },

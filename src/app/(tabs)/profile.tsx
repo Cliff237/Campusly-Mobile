@@ -28,7 +28,7 @@ import { useBottomTabOffset } from '@/ui/tabBarOptions';
 
 export default function ProfileScreen() {
   const { colors, isDark } = useAppTheme();
-  const bottomOffset = useBottomTabOffset(32);
+  const bottomOffset = useBottomTabOffset(36);
   const { user, accessToken, updateProfile, logout } = useAuth();
   const { colorScheme, setColorScheme } = useColorScheme();
 

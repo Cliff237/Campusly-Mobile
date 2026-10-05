@@ -4,9 +4,11 @@ import { StatusBar } from 'expo-status-bar';
 import { EmptyState } from '@/ui/EmptyState';
 import { ScreenHero } from '@/ui/ScreenHero';
 import { useAppTheme } from '@/ui/useAppTheme';
+import { useBottomTabOffset } from '@/ui/tabBarOptions';
 
 export default function NotificationsScreen() {
   const { colors } = useAppTheme();
+  const bottomOffset = useBottomTabOffset(32);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -17,7 +19,7 @@ export default function NotificationsScreen() {
         subtitle="Stay updated with campus news and announcements."
       />
       <ScrollView
-        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingBottom: 110 }}
+        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingBottom: bottomOffset }}
         showsVerticalScrollIndicator={false}
       >
         <EmptyState

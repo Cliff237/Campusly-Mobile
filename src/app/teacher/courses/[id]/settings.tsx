@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AppText } from '@/ui/AppText';
 import { EmptyState } from '@/ui/EmptyState';
 import { useAppTheme } from '@/ui/useAppTheme';
+import { useScreenBottomPadding } from '@/ui/tabBarOptions';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { fetchInstitutionMemberPosts } from '@/lib/api/student';
 import {
@@ -20,6 +21,7 @@ export default function CourseGroupSettingsScreen() {
   const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
   const router = useRouter();
   const { colors } = useAppTheme();
+  const bottomPadding = useScreenBottomPadding(36);
   const { accessToken, currentMembership } = useAuth();
 
   const [posts, setPosts] = useState<StudentFeedPost[]>([]);
@@ -130,7 +132,7 @@ export default function CourseGroupSettingsScreen() {
           refreshControl={
             <RefreshControl refreshing={loading} onRefresh={() => void load()} tintColor={colors.brand} />
           }
-          contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
+          contentContainerStyle={{ padding: 20, paddingBottom: bottomPadding }}
           showsVerticalScrollIndicator={false}
         >
           {/* Shared Media Gallery */}

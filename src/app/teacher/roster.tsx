@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { AppText } from '@/ui/AppText';
 import { EmptyState } from '@/ui/EmptyState';
 import { useAppTheme } from '@/ui/useAppTheme';
+import { useBottomTabOffset } from '@/ui/tabBarOptions';
 import { haptics } from '@/lib/haptics';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -31,6 +32,7 @@ import type { AttendanceRosterStudent, AttendanceSessionSummary } from '@/lib/ty
 
 export default function TeacherRosterScreen() {
   const { colors } = useAppTheme();
+  const bottomOffset = useBottomTabOffset(36);
   const { accessToken } = useAuth();
   const { hasPermission } = usePermissions();
 
@@ -147,7 +149,7 @@ export default function TeacherRosterScreen() {
     <>
       <ScrollView
         style={{ flex: 1, backgroundColor: colors.background }}
-        contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
+        contentContainerStyle={{ padding: 20, paddingBottom: bottomOffset }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -664,7 +666,7 @@ export default function TeacherRosterScreen() {
             ) : null}
           </LinearGradient>
 
-          <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+          <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
             {/* Stat Badges */}
             <View style={{ flexDirection: 'row', gap: 10, marginBottom: 18 }}>
               <View

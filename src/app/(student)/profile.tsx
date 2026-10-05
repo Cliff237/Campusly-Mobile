@@ -21,7 +21,7 @@ const THEMES = [
 export default function StudentProfileScreen() {
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
-  const bottomOffset = useBottomTabOffset(32);
+  const bottomOffset = useBottomTabOffset(36);
   const { user, currentMembership, memberships, logout, selectInstitution, clearSelectedInstitution, getDashboardRoute } =
     useAuth();
   const { colorScheme, setColorScheme } = useColorScheme();

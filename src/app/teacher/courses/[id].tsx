@@ -22,6 +22,7 @@ import { useAppTheme } from '@/ui/useAppTheme';
 import { haptics } from '@/lib/haptics';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { API_URL } from '@/lib/config';
 import {
   createInstitutionPost,
@@ -35,6 +36,8 @@ export default function TeacherCourseThread() {
   const { id, name, classId } = useLocalSearchParams<{ id: string; name?: string; classId?: string }>();
   const router = useRouter();
   const { colors } = useAppTheme();
+  const insets = useSafeAreaInsets();
+  const bottomPadding = Math.max(insets.bottom, Platform.OS === 'android' ? 18 : 10);
   const { accessToken, currentMembership, user } = useAuth();
   const { hasPermission, hasAny } = usePermissions();
 
@@ -223,7 +226,7 @@ export default function TeacherCourseThread() {
         style={{ flex: 1 }}
         contentContainerStyle={{
           paddingTop: 16,
-          paddingBottom: 24,
+          paddingBottom: 24 + bottomPadding,
           flexGrow: 1,
           justifyContent: posts.length ? 'flex-end' : 'center',
         }}
@@ -422,7 +425,7 @@ export default function TeacherCourseThread() {
           style={{
             position: 'absolute',
             right: 20,
-            bottom: 92,
+            bottom: 92 + bottomPadding,
             transform: attendancePosition.getTranslateTransform(),
           }}
         >
@@ -463,7 +466,8 @@ export default function TeacherCourseThread() {
             borderTopWidth: 1,
             borderTopColor: colors.border,
             paddingHorizontal: 14,
-            paddingVertical: 10,
+            paddingTop: 10,
+            paddingBottom: 10 + bottomPadding,
           }}
         >
           <View

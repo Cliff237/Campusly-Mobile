@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { PermissionGate } from '@/components/student/shared/PermissionGate';
 import { EmptyStateAnimation } from '@/ui/EmptyStateAnimation';
+import { useScreenBottomPadding } from '@/ui/tabBarOptions';
 import type { StudentPostCategory } from '@/lib/types/student';
 
 const CATEGORIES: StudentPostCategory[] = [
@@ -23,6 +24,7 @@ const CATEGORIES: StudentPostCategory[] = [
 
 export default function ComposeScreen() {
   const router = useRouter();
+  const bottomPadding = useScreenBottomPadding(40);
   const { courseId } = useLocalSearchParams<{ courseId?: string }>();
   const { accessToken, currentMembership } = useAuth();
   const { hasPermission } = usePermissions();
@@ -74,7 +76,7 @@ export default function ComposeScreen() {
 
   return (
     <PermissionGate permission="post_to_feed">
-      <ScrollView className="flex-1 bg-bg dark:bg-bg-dark" contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+      <ScrollView className="flex-1 bg-bg dark:bg-bg-dark" contentContainerStyle={{ padding: 20, paddingBottom: bottomPadding }}>
         <ThemedText variant="heading" className="mb-4">Compose post</ThemedText>
         <TextInput
           value={title}

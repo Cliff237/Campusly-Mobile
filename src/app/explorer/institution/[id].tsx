@@ -12,6 +12,7 @@ import { ExplorerFeed } from '@/components/explorer/ExplorerFeed';
 import { ExplorerPrograms } from '@/components/explorer/ExplorerPrograms';
 import { OtpFab } from '@/components/discover/OtpFab'; // Reuse the OTP FAB
 import { ThemedText } from '@/ui/ThemedText';
+import { useScreenBottomPadding } from '@/ui/tabBarOptions';
 
 import { 
   fetchInstitutionProfile, 
@@ -28,6 +29,7 @@ type ExplorerSection = 'about' | 'feed' | 'programs';
 
 export default function ExplorerScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const bottomPadding = useScreenBottomPadding(40);
   const router = useRouter();
   const { colorScheme } = useColorScheme();
   const { accessToken } = useAuth();
@@ -150,6 +152,7 @@ export default function ExplorerScreen() {
 
       <ScrollView 
         className="flex-1"
+        contentContainerStyle={{ paddingBottom: bottomPadding }}
         stickyHeaderIndices={[1]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor="#4f46e5" />}
         showsVerticalScrollIndicator={false}

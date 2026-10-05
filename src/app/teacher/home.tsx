@@ -7,6 +7,7 @@ import { AppText } from '@/ui/AppText';
 import { Chip } from '@/ui/Chip';
 import { EmptyState } from '@/ui/EmptyState';
 import { useAppTheme } from '@/ui/useAppTheme';
+import { useBottomTabOffset } from '@/ui/tabBarOptions';
 import { haptics } from '@/lib/haptics';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -27,6 +28,7 @@ const FEED_FILTERS = [
 export default function TeacherHomeScreen() {
   const router = useRouter();
   const { colors, shadow } = useAppTheme();
+  const bottomOffset = useBottomTabOffset(36);
   const { accessToken, currentMembership, user } = useAuth();
   const { hasPermission } = usePermissions();
 
@@ -88,7 +90,7 @@ export default function TeacherHomeScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={{ paddingBottom: 48 }}
+      contentContainerStyle={{ paddingBottom: bottomOffset }}
       showsVerticalScrollIndicator={false}
       refreshControl={
         <RefreshControl

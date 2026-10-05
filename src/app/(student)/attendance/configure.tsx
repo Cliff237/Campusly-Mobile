@@ -10,6 +10,7 @@ import { EmptyState } from '@/ui/EmptyState';
 import { showToast } from '@/ui/Toast';
 import { haptics } from '@/lib/haptics';
 import { useAppTheme } from '@/ui/useAppTheme';
+import { useScreenBottomPadding } from '@/ui/tabBarOptions';
 import { startAttendanceSession } from '@/lib/api/attendance';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useBLE } from '@/hooks/useBLE';
@@ -29,6 +30,7 @@ export default function AttendanceConfigureScreen() {
   const router = useRouter();
   const segments = useSegments();
   const { colors, shadow } = useAppTheme();
+  const bottomPadding = useScreenBottomPadding(40);
   const { classId, courseId, courseName } = useLocalSearchParams<{
     classId?: string;
     courseId?: string;
@@ -130,7 +132,7 @@ export default function AttendanceConfigureScreen() {
     >
       <ScrollView
         style={{ flex: 1, backgroundColor: colors.background }}
-        contentContainerStyle={{ padding: 20, paddingBottom: 54 }}
+        contentContainerStyle={{ padding: 20, paddingBottom: bottomPadding }}
         showsVerticalScrollIndicator={false}
       >
         {/* Header Bar */}

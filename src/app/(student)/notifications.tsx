@@ -32,7 +32,7 @@ const TYPE_META: Record<
 
 export default function StudentNotificationsScreen() {
   const { colors } = useAppTheme();
-  const bottomOffset = useBottomTabOffset(28);
+  const bottomOffset = useBottomTabOffset(36);
   const [selectedFilter, setSelectedFilter] = useState<string>('all');
   const [items, setItems] = useState<StudentNotification[]>([]);
 

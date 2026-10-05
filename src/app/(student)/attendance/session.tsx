@@ -19,6 +19,7 @@ import { BrandMark } from '@/ui/brand/BrandMark';
 import { showToast } from '@/ui/Toast';
 import { haptics } from '@/lib/haptics';
 import { useAppTheme } from '@/ui/useAppTheme';
+import { useScreenBottomPadding } from '@/ui/tabBarOptions';
 import {
   closeAttendanceSession,
   fetchAttendanceRoster,
@@ -102,6 +103,7 @@ export default function LiveAttendanceScreen() {
   const router = useRouter();
   const segments = useSegments();
   const { colors } = useAppTheme();
+  const bottomPadding = useScreenBottomPadding(36);
   const { accessToken } = useAuth();
   const { stopBeacon } = useBLE();
 
@@ -241,7 +243,7 @@ export default function LiveAttendanceScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
+          contentContainerStyle={{ padding: 20, paddingBottom: bottomPadding }}
           showsVerticalScrollIndicator={false}
         >
           {/* Top Session Bar with Campusly Brand Logo */}

@@ -106,7 +106,7 @@ export default function StudentHomeScreen() {
   const { accessToken, currentMembership, user } = useAuth();
   const { hasPermission } = usePermissions();
   const { colors, isDark } = useAppTheme();
-  const bottomOffset = useBottomTabOffset(28); // Prevents floating bar & system nav from hiding content
+  const bottomOffset = useBottomTabOffset(36); // Prevents floating bar & system nav from hiding content
 
   const [filter, setFilter] = useState<StudentFeedFilter>('institution');
   const [posts, setPosts] = useState<StudentFeedPost[]>([]);

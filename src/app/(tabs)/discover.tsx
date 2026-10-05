@@ -21,8 +21,8 @@ import { StoriesRow } from '@/components/discover/StoriesRow';
 import { InstitutionCard } from '@/components/discover/InstitutionCard';
 import { FilterBottomSheet } from '@/components/discover/FilterBottomSheet';
 import { OtpFab } from '@/components/discover/OtpFab';
+import { useBottomTabOffset } from '@/ui/tabBarOptions';
 
-;
 import { useAuth } from '@/lib/auth/AuthContext';
 import { showToast } from '@/ui/Toast';
 import { haptics } from '@/lib/haptics';
@@ -74,6 +74,7 @@ export default function DiscoverScreen() {
   const router = useRouter();
   const { colors, shadow } = useAppTheme();
   const insets = useSafeAreaInsets();
+  const bottomOffset = useBottomTabOffset(36);
   const inset = useColumnInset();
   const { user, memberships, selectInstitution, getMembershipForInstitution, getDashboardRoute, accessToken } = useAuth();
 
@@ -285,7 +286,7 @@ export default function DiscoverScreen() {
             progressBackgroundColor={colors.surface}
           />
         }
-        contentContainerStyle={{ paddingBottom: 112 }}
+        contentContainerStyle={{ paddingBottom: bottomOffset + 40 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       />

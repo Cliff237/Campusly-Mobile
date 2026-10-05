@@ -18,7 +18,7 @@ export default function CoursesListScreen() {
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
   const { accessToken, currentMembership } = useAuth();
-  const bottomOffset = useBottomTabOffset(28);
+  const bottomOffset = useBottomTabOffset(36);
 
   const [courses, setCourses] = useState<StudentCourse[]>([]);
   const [loading, setLoading] = useState(true);

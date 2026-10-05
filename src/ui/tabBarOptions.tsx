@@ -149,7 +149,7 @@ export function AnimatedTabBarButton(props: any) {
 export function useTabBarOptions() {
   const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
-  const bottomOffset = Math.max(insets.bottom + (Platform.OS === 'android' ? 10 : 6), 18);
+  const bottomOffset = Math.max(insets.bottom + (Platform.OS === 'android' ? 12 : 8), Platform.OS === 'android' ? 22 : 18);
 
   return {
     headerShown: false,
@@ -191,9 +191,9 @@ export function useTabBarOptions() {
  * so that all content scrolls cleanly above the floating capsule tab bar
  * without being clipped or obscured by the bar or phone navigation buttons.
  */
-export function useBottomTabOffset(extraPadding = 28) {
+export function useBottomTabOffset(extraPadding = 32) {
   const insets = useSafeAreaInsets();
-  const bottomOffset = Math.max(insets.bottom + (Platform.OS === 'android' ? 10 : 6), 18);
+  const bottomOffset = Math.max(insets.bottom + (Platform.OS === 'android' ? 12 : 8), Platform.OS === 'android' ? 22 : 18);
   return 68 + bottomOffset + extraPadding;
 }
 
@@ -201,9 +201,9 @@ export function useBottomTabOffset(extraPadding = 28) {
  * Returns safe bottom padding for non-tab screens (e.g. detail pages, modals)
  * to ensure action buttons and content stay clear of the Android navigation bar.
  */
-export function useScreenBottomPadding(extraPadding = 20) {
+export function useScreenBottomPadding(extraPadding = 24) {
   const insets = useSafeAreaInsets();
-  return Math.max(insets.bottom, Platform.OS === 'android' ? 16 : 12) + extraPadding;
+  return Math.max(insets.bottom, Platform.OS === 'android' ? 24 : 16) + extraPadding;
 }
 
 const styles = StyleSheet.create({

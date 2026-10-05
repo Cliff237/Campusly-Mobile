@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { createMarkSubmission, deleteMarkSubmission, fetchClassMarkSubmissions, fetchTeacherClasses, updateMarkSubmission } from '@/lib/api/teacherMarks';
 import { fetchAttendanceRoster, fetchAttendanceSessions } from '@/lib/api/attendance';
 import { createAssessmentType, deleteAssessmentType, fetchAssessmentTypes } from '@/lib/api/assessmentTypes';
+import { useBottomTabOffset } from '@/ui/tabBarOptions';
 import type { MarkAssessmentType, TeacherClass, TeacherMarkSubmission, CustomAssessmentType } from '@/lib/types/teacherMarks';
 import type { AttendanceRosterStudent, AttendanceSessionSummary } from '@/lib/types/attendance';
 
@@ -35,6 +36,7 @@ export default function TeacherMarksScreen() {
   const { accessToken } = useAuth();
   const { colorScheme } = useColorScheme();
   const dark = colorScheme === 'dark';
+  const bottomOffset = useBottomTabOffset(36);
   
   const [classes, setClasses] = useState<TeacherClass[]>([]);
   const [selected, setSelected] = useState<TeacherClass | null>(null);
@@ -129,7 +131,7 @@ export default function TeacherMarksScreen() {
   return (
     <ScrollView 
       className="flex-1 bg-mist dark:bg-bg-dark" 
-      contentContainerStyle={{ padding: 20, paddingBottom: 44 }}
+      contentContainerStyle={{ padding: 20, paddingBottom: bottomOffset }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#0f766e" />}
     >
       {/* Header */}

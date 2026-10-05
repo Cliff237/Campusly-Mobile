@@ -8,6 +8,7 @@ import { AppText } from '@/ui/AppText';
 import { EmptyState } from '@/ui/EmptyState';
 import { BrandMark } from '@/ui/brand/BrandMark';
 import { useAppTheme } from '@/ui/useAppTheme';
+import { useBottomTabOffset } from '@/ui/tabBarOptions';
 import { haptics } from '@/lib/haptics';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { fetchTeacherClasses } from '@/lib/api/teacherMarks';
@@ -16,6 +17,7 @@ import type { TeacherClass } from '@/lib/types/teacherMarks';
 export default function TeacherDashboard() {
   const router = useRouter();
   const { colors } = useAppTheme();
+  const bottomOffset = useBottomTabOffset(36);
   const { accessToken, currentMembership } = useAuth();
   const [classes, setClasses] = useState<TeacherClass[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,7 +60,7 @@ export default function TeacherDashboard() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView
-        contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
+        contentContainerStyle={{ padding: 20, paddingBottom: bottomOffset }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl

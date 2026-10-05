@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { AppText } from '@/ui/AppText';
 import { EmptyState } from '@/ui/EmptyState';
 import { useAppTheme } from '@/ui/useAppTheme';
+import { useBottomTabOffset } from '@/ui/tabBarOptions';
 import { haptics } from '@/lib/haptics';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -16,6 +17,7 @@ const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] as const;
 export default function TeacherScheduleScreen() {
   const router = useRouter();
   const { colors } = useAppTheme();
+  const bottomOffset = useBottomTabOffset(36);
   const { accessToken, currentMembership } = useAuth();
   const { hasPermission } = usePermissions();
 
@@ -54,7 +56,7 @@ export default function TeacherScheduleScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={{ paddingTop: 16, paddingBottom: 48, flexGrow: 1 }}
+      contentContainerStyle={{ paddingTop: 16, paddingBottom: bottomOffset, flexGrow: 1 }}
       showsVerticalScrollIndicator={false}
       refreshControl={
         <RefreshControl
