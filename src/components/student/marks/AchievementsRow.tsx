@@ -1,6 +1,7 @@
 import { ScrollView, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { ThemedText } from '@/ui/ThemedText';
+import { AppText } from '@/ui/AppText';
+import { useAppTheme } from '@/ui/useAppTheme';
 import type { AchievementBadge } from '@/lib/types/student';
 
 interface AchievementsRowProps {
@@ -8,24 +9,65 @@ interface AchievementsRowProps {
 }
 
 export function AchievementsRow({ badges }: AchievementsRowProps) {
+  const { colors, isDark } = useAppTheme();
+
   if (badges.length === 0) return null;
 
   return (
-    <View className="mb-6">
-      <ThemedText variant="subheading" className="px-5 mb-3">Achievements</ThemedText>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
+    <View style={{ marginBottom: 24 }}>
+      <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
+        <AppText variant="subheading" weight="bold">
+          Academic Honors & Milestones
+        </AppText>
+      </View>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}
+      >
         {badges.map((badge) => (
           <View
             key={badge.id}
-            className={`w-40 rounded-2xl border p-4 ${
-              badge.earned
-                ? 'bg-surface dark:bg-surface-dark border-border dark:border-border-dark'
-                : 'bg-surface-hover dark:bg-surface-hover-dark border-border dark:border-border-dark opacity-60'
-            }`}
+            style={{
+              width: 170,
+              borderRadius: 20,
+              backgroundColor: colors.surface,
+              borderWidth: 1,
+              borderColor: colors.border,
+              padding: 16,
+              opacity: badge.earned ? 1 : 0.6,
+              elevation: badge.earned ? 2 : 0,
+              shadowColor: '#170F2E',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: isDark ? 0.3 : 0.05,
+              shadowRadius: 6,
+            }}
           >
-            <Ionicons name={badge.earned ? 'trophy' : 'lock-closed-outline'} size={22} color={badge.earned ? '#7c3aed' : '#64748b'} />
-            <ThemedText variant="caption" className="font-semibold mt-2">{badge.title}</ThemedText>
-            <ThemedText variant="tiny" className="text-text-muted dark:text-text-muted-dark mt-1">{badge.description}</ThemedText>
+            <View
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 14,
+                backgroundColor: badge.earned ? 'rgba(124, 58, 237, 0.14)' : colors.surfaceMuted,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 10,
+              }}
+            >
+              <Ionicons
+                name={badge.earned ? 'trophy' : 'lock-closed-outline'}
+                size={22}
+                color={badge.earned ? '#7C3AED' : colors.textMuted}
+              />
+            </View>
+
+            <AppText variant="caption" weight="bold">
+              {badge.title}
+            </AppText>
+            <AppText variant="caption" tone="muted" style={{ marginTop: 4, lineHeight: 16 }}>
+              {badge.description}
+            </AppText>
           </View>
         ))}
       </ScrollView>

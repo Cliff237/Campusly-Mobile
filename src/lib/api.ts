@@ -80,12 +80,23 @@ async function requestJson<T>(label: string, url: string, options: RequestInit =
     }
     console.log(`[API][${label}] <- ${response.status}`, payload);
     if (!response.ok) {
-      throw new Error(getResponseMessage(payload, `${label} failed`));
+      const err = new Error(getResponseMessage(payload, `${label} failed`));
+      (err as any).status = response.status;
+      (err as any).payload = payload;
+      throw err;
     }
     return payload as T;
   } catch (error) {
     const normalizedError = toFriendlyError(error, label);
-    console.error(`[API][${label}] request failed`, normalizedError);
+    const status = (error as any)?.status;
+    if (status) {
+      (normalizedError as any).status = status;
+    }
+    if (status === 401 || /unauthorized|401/i.test(normalizedError.message)) {
+      console.log(`[API][${label}] session unauthorized (${status ?? 401})`);
+    } else {
+      console.error(`[API][${label}] request failed`, normalizedError);
+    }
     throw normalizedError;
   } finally {
     clearTimeout(timeout);

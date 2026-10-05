@@ -1,6 +1,7 @@
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useColorScheme } from 'nativewind';
+import React from 'react';
 
 /** Calm layered backdrop for auth: depth without distracting motion. */
 export function AnimatedBackground() {

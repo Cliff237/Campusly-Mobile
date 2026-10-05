@@ -1,10 +1,11 @@
-import { View, TouchableOpacity } from 'react-native';
+import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { href } from '@/lib/href';
-import { useColorScheme } from 'nativewind';
-import { ThemedText } from '@/ui/ThemedText';
+import { AppText } from '@/ui/AppText';
+import { BrandLockup } from '@/ui/brand/BrandLockup';
+import { useAppTheme } from '@/ui/useAppTheme';
 import { haptics } from '@/lib/haptics';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { initialsFromName } from '@/lib/format';
@@ -16,16 +17,25 @@ interface TopNavProps {
 export function TopNav({ unreadCount = 0 }: TopNavProps) {
   const router = useRouter();
   const { user } = useAuth();
-  const { colorScheme } = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { colors } = useAppTheme();
   const initials = initialsFromName(user?.full_name || 'Campusly');
 
   return (
-    <View className="flex-row items-center justify-between px-5 py-3 bg-bg dark:bg-bg-dark border-b border-border dark:border-border-dark">
-      <ThemedText variant="heading" className="font-display text-text dark:text-text-dark">
-        Campusly
-      </ThemedText>
-      <View className="flex-row items-center gap-3">
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        backgroundColor: colors.surface,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: colors.border,
+      }}
+    >
+      <BrandLockup tone="default" markSize={32} />
+
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel="Notifications"
@@ -33,17 +43,43 @@ export function TopNav({ unreadCount = 0 }: TopNavProps) {
             haptics.light();
             router.push(href('/(student)/notifications'));
           }}
-          className="w-10 h-10 rounded-full items-center justify-center bg-surface dark:bg-surface-dark border border-border dark:border-border-dark"
+          activeOpacity={0.7}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: colors.surfaceMuted,
+            borderWidth: 1,
+            borderColor: colors.border,
+          }}
         >
-          <Ionicons name="notifications-outline" size={20} color={isDark ? '#f8fafc' : '#0f172a'} />
+          <Ionicons name="notifications-outline" size={20} color={colors.text} />
           {unreadCount > 0 ? (
-            <View className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-accent-start items-center justify-center">
-              <ThemedText variant="tiny" className="text-white text-[10px] font-bold">
+            <View
+              style={{
+                position: 'absolute',
+                top: 0,
+                right: 0,
+                minWidth: 18,
+                height: 18,
+                paddingHorizontal: 4,
+                borderRadius: 9,
+                backgroundColor: colors.brand,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 2,
+                borderColor: colors.surface,
+              }}
+            >
+              <AppText variant="overline" color="#ffffff" style={{ fontSize: 9 }}>
                 {unreadCount > 9 ? '9+' : unreadCount}
-              </ThemedText>
+              </AppText>
             </View>
           ) : null}
         </TouchableOpacity>
+
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel="Profile"
@@ -51,7 +87,18 @@ export function TopNav({ unreadCount = 0 }: TopNavProps) {
             haptics.light();
             router.push(href('/(tabs)/profile'));
           }}
-          className="w-10 h-10 rounded-full bg-accent-start/15 items-center justify-center border border-border dark:border-border-dark overflow-hidden"
+          activeOpacity={0.7}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: colors.brandSoft,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 1.5,
+            borderColor: colors.brand,
+            overflow: 'hidden',
+          }}
         >
           {user?.profile_image_url ? (
             <Image
@@ -61,9 +108,9 @@ export function TopNav({ unreadCount = 0 }: TopNavProps) {
               accessibilityLabel={`${user.full_name || 'User'} profile photo`}
             />
           ) : (
-            <ThemedText variant="caption" className="text-accent-start font-semibold">
+            <AppText variant="label" weight="bold" tone="brand">
               {initials}
-            </ThemedText>
+            </AppText>
           )}
         </TouchableOpacity>
       </View>

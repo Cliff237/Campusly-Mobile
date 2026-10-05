@@ -136,6 +136,19 @@ export function setupNotificationListener(callback: (notification: any, action?:
   return () => subscription.remove();
 }
 
+export async function getLastNotificationResponse(): Promise<any | null> {
+  if (!Notifications) {
+    return null;
+  }
+  try {
+    const response = await Notifications.getLastNotificationResponseAsync();
+    return response ?? null;
+  } catch (error) {
+    console.warn('[Notifications] Failed to get last notification response:', error);
+    return null;
+  }
+}
+
 export function setupForegroundNotificationListener(callback: (notification: any) => void): () => void {
   if (!Notifications) {
     console.log('[Notifications] expo-notifications not available, skipping foreground notification listener setup');

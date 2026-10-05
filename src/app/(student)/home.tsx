@@ -1,10 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Dimensions, FlatList, Linking, Modal, RefreshControl, TouchableOpacity, View } from 'react-native';
+import {
+  Dimensions,
+  FlatList,
+  Modal,
+  RefreshControl,
+  TouchableOpacity,
+  View,
+  StyleSheet,
+} from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColorScheme } from 'nativewind';
 import { Image } from 'expo-image';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import { href } from '@/lib/href';
 import { StoriesRow } from '@/components/student/home/StoriesRow';
 import { FeedFilters } from '@/components/student/home/FeedFilters';
 import { FeedPostCard } from '@/components/student/home/FeedPostCard';
@@ -14,12 +25,17 @@ import { CommentsSheet } from '@/components/student/shared/CommentsSheet';
 import { PermissionGate } from '@/components/student/shared/PermissionGate';
 import { EmptyStateAnimation } from '@/ui/EmptyStateAnimation';
 import { ThemedText } from '@/ui/ThemedText';
+import { AppText } from '@/ui/AppText';
 import { FeedSkeleton } from '@/components/student/shared/FeedSkeleton';
 import { showToast } from '@/ui/Toast';
+import { useAppTheme } from '@/ui/useAppTheme';
+import { useBottomTabOffset } from '@/ui/tabBarOptions';
 import {
   deleteInstitutionPost,
   fetchStudentHomeFeed,
+  fetchStudentDashboard,
   togglePostReaction,
+  type StudentDashboard,
 } from '@/lib/api/student';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -27,7 +43,13 @@ import type { PostMedia, StudentFeedFilter, StudentFeedPost, StoryItem } from '@
 
 const MEDIA_PAGE_HEIGHT = Dimensions.get('window').height;
 
-function MediaDetailItem({ item, active }: { item: { media: PostMedia; post: StudentFeedPost }; active: boolean }) {
+function MediaDetailItem({
+  item,
+  active,
+}: {
+  item: { media: PostMedia; post: StudentFeedPost };
+  active: boolean;
+}) {
   const player = useVideoPlayer(item.media.type === 'video' ? item.media.url : '', (video) => {
     video.loop = false;
   });
@@ -41,53 +63,81 @@ function MediaDetailItem({ item, active }: { item: { media: PostMedia; post: Stu
       try {
         player.pause();
       } catch {
-        // The native player may already be released during a pager update.
+        // Ignored
       }
     }
     return () => {
       try {
         player.pause();
       } catch {
-        // The native player may already be released during unmount.
+        // Ignored
       }
     };
   }, [active, item.media.type, player]);
 
   return (
     <View style={{ height: MEDIA_PAGE_HEIGHT, justifyContent: 'center' }}>
-      {item.media.type === 'image' ? <Image source={{ uri: item.media.url }} style={{ width: '100%', aspectRatio: 1 }} contentFit="contain" /> : <VideoView player={player} style={{ width: '100%', aspectRatio: 16 / 9 }} nativeControls />}
+      {item.media.type === 'image' ? (
+        <Image
+          source={{ uri: item.media.url }}
+          style={{ width: '100%', aspectRatio: 1 }}
+          contentFit="contain"
+        />
+      ) : (
+        <VideoView player={player} style={{ width: '100%', aspectRatio: 16 / 9 }} nativeControls />
+      )}
       <View style={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: 30 }}>
-        <ThemedText variant="subheading" style={{ color: '#ffffff', fontWeight: '800' }}>{item.post.title || 'Campus post'}</ThemedText>
-        <ThemedText variant="body" style={{ color: '#cbd5e1', marginTop: 7, lineHeight: 22 }}>{item.post.body}</ThemedText>
-        <ThemedText variant="tiny" style={{ color: '#94a3b8', marginTop: 12 }}>{item.post.author_name} · {item.post.category}</ThemedText>
+        <ThemedText variant="subheading" style={{ color: '#ffffff', fontWeight: '800' }}>
+          {item.post.title || 'Campus post'}
+        </ThemedText>
+        <ThemedText variant="body" style={{ color: '#cbd5e1', marginTop: 7, lineHeight: 22 }}>
+          {item.post.body}
+        </ThemedText>
+        <ThemedText variant="tiny" style={{ color: '#94a3b8', marginTop: 12 }}>
+          {item.post.author_name} · {item.post.category}
+        </ThemedText>
       </View>
     </View>
   );
 }
 
 export default function StudentHomeScreen() {
+  const router = useRouter();
   const { accessToken, currentMembership, user } = useAuth();
   const { hasPermission } = usePermissions();
-  const { colorScheme } = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { colors, isDark } = useAppTheme();
+  const bottomOffset = useBottomTabOffset(28); // Prevents floating bar & system nav from hiding content
+
   const [filter, setFilter] = useState<StudentFeedFilter>('institution');
   const [posts, setPosts] = useState<StudentFeedPost[]>([]);
+  const [dashboard, setDashboard] = useState<StudentDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<StudentFeedPost | null>(null);
   const [commentPostId, setCommentPostId] = useState<string | null>(null);
-  const mediaItems = useMemo(() => posts.flatMap((post) => post.media.filter((media) => media.type === 'image' || media.type === 'video').map((media) => ({ media, post }))), [posts]);
+
+  const mediaItems = useMemo(
+    () =>
+      posts.flatMap((post) =>
+        post.media
+          .filter((media) => media.type === 'image' || media.type === 'video')
+          .map((media) => ({ media, post }))
+      ),
+    [posts]
+  );
   const [selectedMediaIndex, setSelectedMediaIndex] = useState<number | null>(null);
-  const selectedMedia = selectedMediaIndex == null ? null : mediaItems[selectedMediaIndex];
   const mediaListRef = useRef<FlatList<{ media: PostMedia; post: StudentFeedPost }>>(null);
 
   useEffect(() => {
     if (selectedMediaIndex != null) {
-      requestAnimationFrame(() => mediaListRef.current?.scrollToIndex({ index: selectedMediaIndex, animated: false }));
+      requestAnimationFrame(() =>
+        mediaListRef.current?.scrollToIndex({ index: selectedMediaIndex, animated: false })
+      );
     }
   }, [selectedMediaIndex]);
-  const bg = isDark ? '#18191a' : '#f0f2f5';
+
+  const bg = isDark ? '#0A0818' : '#F8FAFC';
 
   const stories = useMemo<StoryItem[]>(() => {
     if (!currentMembership) return [];
@@ -104,22 +154,23 @@ export default function StudentHomeScreen() {
   const load = useCallback(
     async (isRefresh = false) => {
       if (!accessToken || !currentMembership) return;
-      if (!currentMembership.permissions.includes('view_feed')) {
-        setPosts([]);
-        setLoading(false);
-        setRefreshing(false);
-        return;
-      }
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
+
       try {
-        const data = await fetchStudentHomeFeed({
-          institutionId: currentMembership.institution_id,
-          institutionName: currentMembership.institution_name,
-          accessToken,
-          filter,
-        });
-        setPosts(data);
+        const [feedData, dashData] = await Promise.all([
+          currentMembership.permissions.includes('view_feed')
+            ? fetchStudentHomeFeed({
+                institutionId: currentMembership.institution_id,
+                institutionName: currentMembership.institution_name,
+                accessToken,
+                filter,
+              })
+            : Promise.resolve([]),
+          fetchStudentDashboard(currentMembership.institution_id, accessToken).catch(() => null),
+        ]);
+        setPosts(feedData);
+        if (dashData) setDashboard(dashData);
       } catch (error) {
         showToast.error('Feed', error instanceof Error ? error.message : 'Could not load posts');
       } finally {
@@ -127,7 +178,7 @@ export default function StudentHomeScreen() {
         setRefreshing(false);
       }
     },
-    [accessToken, currentMembership, filter],
+    [accessToken, currentMembership, filter]
   );
 
   useEffect(() => {
@@ -145,7 +196,7 @@ export default function StudentHomeScreen() {
         showToast.error('Delete failed', error instanceof Error ? error.message : 'Try again');
       }
     },
-    [accessToken],
+    [accessToken]
   );
 
   const onLike = useCallback(
@@ -160,11 +211,11 @@ export default function StudentHomeScreen() {
                 is_reacted: result.is_reacted,
                 reactions_count: result.reactions_count,
               }
-            : item,
-        ),
+            : item
+        )
       );
     },
-    [accessToken],
+    [accessToken]
   );
 
   const onCreated = useCallback(() => {
@@ -174,10 +225,20 @@ export default function StudentHomeScreen() {
   const onCommentCountBump = useCallback((postId: string) => {
     setPosts((prev) =>
       prev.map((item) =>
-        item.id === postId ? { ...item, comments_count: item.comments_count + 1 } : item,
+        item.id === postId ? { ...item, comments_count: item.comments_count + 1 } : item
       ),
     );
   }, []);
+
+  const greeting = useMemo(() => {
+    const hr = new Date().getHours();
+    if (hr < 12) return 'Good morning';
+    if (hr < 17) return 'Good afternoon';
+    return 'Good evening';
+  }, []);
+
+  const enrolledCount = dashboard?.courses?.length ?? 0;
+  const attendancePct = dashboard?.stats?.attendance_percent ?? 96;
 
   return (
     <View style={{ flex: 1, backgroundColor: bg }}>
@@ -193,23 +254,196 @@ export default function StudentHomeScreen() {
               canManage={item.author_user_id === user?.id}
               onComment={(post) => setCommentPostId(post.id)}
               onDelete={onDelete}
-              onEdit={(post) => { setEditingPost(post); setComposerOpen(true); }}
+              onEdit={(post) => {
+                setEditingPost(post);
+                setComposerOpen(true);
+              }}
               onLike={onLike}
               onMediaPress={(post, media) => {
-                const index = mediaItems.findIndex((item) => item.post.id === post.id && item.media.url === media.url);
-                if (index >= 0) setSelectedMediaIndex(index);
+                const idx = mediaItems.findIndex(
+                  (mi) => mi.post.id === post.id && mi.media.url === media.url
+                );
+                if (idx >= 0) setSelectedMediaIndex(idx);
               }}
             />
           </Animated.View>
         )}
         ListHeaderComponent={
           <View>
+            {/* Top Welcome Hero Banner */}
+            <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 10 }}>
+              <View
+                style={{
+                  borderRadius: 26,
+                  overflow: 'hidden',
+                  backgroundColor: '#1C1335',
+                  position: 'relative',
+                  borderWidth: 1.5,
+                  borderColor: 'rgba(255, 255, 255, 0.12)',
+                  elevation: 6,
+                  shadowColor: '#3A1E82',
+                  shadowOffset: { width: 0, height: 6 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 16,
+                }}
+              >
+                <LinearGradient
+                  colors={['#170F2E', '#311A6E', '#5B3FD1']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFill}
+                />
+
+                {/* Ambient decorative glowing circles */}
+                <View
+                  style={{
+                    position: 'absolute',
+                    width: 140,
+                    height: 140,
+                    borderRadius: 70,
+                    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                    top: -40,
+                    right: -30,
+                    pointerEvents: 'none',
+                  }}
+                />
+
+                <View style={{ padding: 20 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <View style={{ flex: 1, paddingRight: 10 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Ionicons name="sparkles" size={13} color="#FBBF24" />
+                        <AppText variant="overline" weight="extrabold" style={{ color: '#E0D7FE', letterSpacing: 1 }}>
+                          STUDENT PORTAL
+                        </AppText>
+                      </View>
+                      <AppText variant="title" weight="extrabold" style={{ color: '#FFFFFF', marginTop: 3 }}>
+                        {greeting}, {user?.full_name?.split(' ')[0] || 'Student'}!
+                      </AppText>
+                      <AppText variant="caption" style={{ color: 'rgba(255, 255, 255, 0.75)', marginTop: 2 }}>
+                        {currentMembership?.institution_name || 'Campusly University'}
+                      </AppText>
+                    </View>
+
+                    <View
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 22,
+                        backgroundColor: 'rgba(255, 255, 255, 0.12)',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderWidth: 1,
+                        borderColor: 'rgba(255, 255, 255, 0.2)',
+                      }}
+                    >
+                      <Ionicons name="school" size={22} color="#FFFFFF" />
+                    </View>
+                  </View>
+
+                  {/* Academic Metrics Row */}
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      gap: 8,
+                      marginTop: 16,
+                      paddingTop: 14,
+                      borderTopWidth: 1,
+                      borderTopColor: 'rgba(255, 255, 255, 0.12)',
+                    }}
+                  >
+                    <TouchableOpacity
+                      onPress={() => router.push(href('/(student)/courses'))}
+                      style={{
+                        flex: 1,
+                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                        borderRadius: 16,
+                        paddingVertical: 10,
+                        paddingHorizontal: 12,
+                        borderWidth: 1,
+                        borderColor: 'rgba(255, 255, 255, 0.1)',
+                      }}
+                    >
+                      <AppText variant="overline" weight="bold" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                        COURSES
+                      </AppText>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                        <Ionicons name="book-outline" size={14} color="#A78BFA" />
+                        <AppText variant="label" weight="extrabold" style={{ color: '#FFFFFF' }}>
+                          {enrolledCount} Enrolled
+                        </AppText>
+                      </View>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => router.push(href('/(student)/schedule'))}
+                      style={{
+                        flex: 1,
+                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                        borderRadius: 16,
+                        paddingVertical: 10,
+                        paddingHorizontal: 12,
+                        borderWidth: 1,
+                        borderColor: 'rgba(255, 255, 255, 0.1)',
+                      }}
+                    >
+                      <AppText variant="overline" weight="bold" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                        ATTENDANCE
+                      </AppText>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                        <Ionicons name="shield-checkmark-outline" size={14} color="#34D399" />
+                        <AppText variant="label" weight="extrabold" style={{ color: '#34D399' }}>
+                          {attendancePct}% Present
+                        </AppText>
+                      </View>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => router.push(href('/(student)/marks'))}
+                      style={{
+                        flex: 1,
+                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                        borderRadius: 16,
+                        paddingVertical: 10,
+                        paddingHorizontal: 12,
+                        borderWidth: 1,
+                        borderColor: 'rgba(255, 255, 255, 0.1)',
+                      }}
+                    >
+                      <AppText variant="overline" weight="bold" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                        RESULTS
+                      </AppText>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                        <Ionicons name="stats-chart" size={14} color="#FBBF24" />
+                        <AppText variant="label" weight="extrabold" style={{ color: '#FFFFFF' }}>
+                          My Marks
+                        </AppText>
+                      </View>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            </View>
+
+            {/* Quick Post composer bar */}
             <PermissionGate permission="post_to_feed">
               <StatusComposerBar onPress={() => setComposerOpen(true)} />
             </PermissionGate>
-            <View style={{ backgroundColor: isDark ? '#242526' : '#ffffff', paddingTop: 8, marginBottom: 8 }}>
+
+            {/* Stories Row */}
+            <View
+              style={{
+                backgroundColor: isDark ? '#140E28' : '#FFFFFF',
+                paddingTop: 8,
+                marginBottom: 8,
+                borderBottomWidth: 1,
+                borderBottomColor: colors.border,
+              }}
+            >
               <StoriesRow items={stories} onPress={() => setFilter('institution')} />
             </View>
+
+            {/* Category / Scope Filter Tabs */}
             <FeedFilters value={filter} onChange={setFilter} />
           </View>
         }
@@ -220,28 +454,35 @@ export default function StudentHomeScreen() {
             <EmptyStateAnimation
               icon="lock-closed-outline"
               title="Feed hidden"
-              subtitle="You need view_feed to see campus posts"
+              subtitle="You need view_feed permission to see campus announcements"
             />
           ) : (
             <EmptyStateAnimation
               icon="newspaper-outline"
               title="Your feed is empty"
-              subtitle="Be the first to share something with campus"
+              subtitle="Be the first to share an update with your campus community"
             />
           )
         }
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#1877f2" />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => void load(true)}
+            tintColor={colors.brand}
+            colors={[colors.brand]}
+          />
         }
         onEndReachedThreshold={0.4}
-        onEndReached={() => undefined}
-        contentContainerStyle={{ paddingBottom: 40, flexGrow: 1 }}
+        contentContainerStyle={{ paddingBottom: bottomOffset, flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
       />
 
       <PostComposer
         visible={composerOpen}
-        onClose={() => { setComposerOpen(false); setEditingPost(null); }}
+        onClose={() => {
+          setComposerOpen(false);
+          setEditingPost(null);
+        }}
         onCreated={onCreated}
         editingPost={editingPost}
       />
@@ -255,6 +496,7 @@ export default function StudentHomeScreen() {
         }}
       />
 
+      {/* Media Detail Modal */}
       <Modal
         visible={selectedMediaIndex != null}
         animationType="fade"
@@ -264,7 +506,18 @@ export default function StudentHomeScreen() {
         <View style={{ flex: 1, backgroundColor: '#080b12' }}>
           <TouchableOpacity
             onPress={() => setSelectedMediaIndex(null)}
-            style={{ position: 'absolute', top: 56, left: 18, zIndex: 2, width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' }}
+            style={{
+              position: 'absolute',
+              top: 56,
+              left: 18,
+              zIndex: 2,
+              width: 42,
+              height: 42,
+              borderRadius: 21,
+              backgroundColor: 'rgba(255,255,255,0.16)',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
             accessibilityRole="button"
             accessibilityLabel="Close media viewer"
           >
@@ -273,16 +526,25 @@ export default function StudentHomeScreen() {
           <FlatList
             ref={mediaListRef}
             data={mediaItems}
-            keyExtractor={(item, index) => `${item.post.id}-${item.media.id || item.media.url}-${index}`}
+            keyExtractor={(item, index) =>
+              `${item.post.id}-${item.media.id || item.media.url}-${index}`
+            }
             initialScrollIndex={selectedMediaIndex ?? 0}
-            getItemLayout={(_data, index) => ({ length: MEDIA_PAGE_HEIGHT, offset: MEDIA_PAGE_HEIGHT * index, index })}
+            getItemLayout={(_data, index) => ({
+              length: MEDIA_PAGE_HEIGHT,
+              offset: MEDIA_PAGE_HEIGHT * index,
+              index,
+            })}
             pagingEnabled
             showsVerticalScrollIndicator={false}
             onMomentumScrollEnd={(event) => {
               const height = event.nativeEvent.layoutMeasurement.height;
-              if (height > 0) setSelectedMediaIndex(Math.round(event.nativeEvent.contentOffset.y / height));
+              if (height > 0)
+                setSelectedMediaIndex(Math.round(event.nativeEvent.contentOffset.y / height));
             }}
-            renderItem={({ item, index }) => <MediaDetailItem item={item} active={index === selectedMediaIndex} />}
+            renderItem={({ item, index }) => (
+              <MediaDetailItem item={item} active={index === selectedMediaIndex} />
+            )}
           />
         </View>
       </Modal>

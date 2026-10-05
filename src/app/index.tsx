@@ -1,8 +1,13 @@
 // src/app/index.tsx
 import { Redirect } from 'expo-router';
-import { View, ActivityIndicator } from 'react-native';
-import { useColorScheme } from 'nativewind';
+import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
+import { ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { BrandMark } from '@/ui/brand/BrandMark';
+import { HeroBackdrop } from '@/ui/brand/HeroBackdrop';
+import { useAppTheme } from '@/ui/useAppTheme';
 
 /**
  * Root Entry Point — Smart Routing Hub
@@ -28,23 +33,25 @@ import { useAuth } from '@/lib/auth/AuthContext';
  */
 export default function Index() {
   const { user, isAuthenticated, isReady } = useAuth();
-  const { colorScheme } = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { colors } = useAppTheme();
+  const insets = useSafeAreaInsets();
 
   // 1. Wait for auth state to hydrate from SecureStore
   //    (prevents logged-in users from briefly seeing the auth screen)
   if (!isReady) {
+    // Brand-coloured loading screen: continues straight into the auth hero.
     return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: 'center',
-          alignItems: 'center',
-          backgroundColor: isDark ? '#0f172a' : '#f8fafc',
-        }}
+      <LinearGradient
+        colors={colors.heroGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 28 }}
       >
-        <ActivityIndicator size="large" color="#4f46e5" />
-      </View>
+        <StatusBar style="light" />
+        <HeroBackdrop topInset={insets.top} />
+        <BrandMark size={76} variant="glass" />
+        <ActivityIndicator size="small" color="#FFFFFF" />
+      </LinearGradient>
     );
   }
 

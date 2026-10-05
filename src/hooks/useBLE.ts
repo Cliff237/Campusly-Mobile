@@ -43,14 +43,22 @@ export function useBLE() {
   const prepareBluetooth = useCallback(async () => {
     const hasPermissions = await requestBluetoothPermissions();
     if (!hasPermissions) {
-      throw new Error('Bluetooth permissions not granted');
+      throw new Error('Bluetooth permissions are required to verify attendance.');
+    }
+    const isEnabled = await ensureBluetoothEnabled();
+    if (!isEnabled) {
+      throw new Error('Bluetooth is turned off. Please turn on Bluetooth to verify attendance.');
     }
   }, []);
 
   const prepareBluetoothForAdvertising = useCallback(async () => {
     const hasPermissions = await requestBluetoothAdvertisingPermissions();
     if (!hasPermissions) {
-      throw new Error('Bluetooth advertising permissions not granted');
+      throw new Error('Bluetooth advertising permissions are required to start the attendance session.');
+    }
+    const isEnabled = await ensureBluetoothEnabled();
+    if (!isEnabled) {
+      throw new Error('Bluetooth is turned off. Please enable Bluetooth on your device to broadcast the attendance session.');
     }
   }, []);
 

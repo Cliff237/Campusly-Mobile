@@ -1,6 +1,7 @@
 // src/ui/ThemedCard.tsx
 import { View, type ViewProps, StyleSheet } from 'react-native';
 import { useColorScheme } from 'nativewind';
+import React from 'react';
 
 interface ThemedCardProps extends ViewProps {
   variant?: 'default' | 'elevated' | 'glass';

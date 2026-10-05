@@ -1,9 +1,17 @@
-// components/discover/InstitutionCard.tsx
-import { View, TouchableOpacity, Image } from 'react-native';
+// components/discover/InstitutionCard.tsx — Redesigned with modern social-campus aesthetics
 import { Ionicons } from '@expo/vector-icons';
-import { ThemedText } from '@/ui/ThemedText';
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Pressable, StyleSheet, View } from 'react-native';
+
 import { haptics } from '@/lib/haptics';
-import { DirectoryInstitution } from '@/lib/api/discover/explorer';
+import type { DirectoryInstitution } from '@/lib/api/discover/explorer';
+import { AppText } from '@/ui/AppText';
+import { InstitutionMark } from '@/ui/InstitutionMark';
+import { safeColor } from '@/ui/color';
+import { palette } from '@/ui/tokens';
+import { useAppTheme } from '@/ui/useAppTheme';
+import { ACTOR_LABELS, formatCount, TYPE_LABELS } from './roles';
 
 interface InstitutionCardProps {
   institution: DirectoryInstitution;
@@ -14,116 +22,344 @@ interface InstitutionCardProps {
   onView: () => void;
 }
 
-const ACTOR_LABELS: Record<string, string> = {
-  student: 'Student',
-  guardian: 'Guardian',
-  teacher: 'Teacher',
-  staff: 'Staff',
-  school_admin: 'School admin',
-};
-
-function formatCount(n: number): string {
-  if (n >= 1000000) return `${(n / 1000000).toFixed(1).replace(/\.0$/, '')}M`;
-  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, '')}K`;
-  return `${n}`;
-}
-
-export function InstitutionCard({ institution, isFollowing, isBound, baseActor, onFollow, onView }: InstitutionCardProps) {
-  const brandColor = institution.brand_accent_color || '#4f46e5';
+export function InstitutionCard({
+  institution,
+  isFollowing,
+  isBound,
+  baseActor,
+  onFollow,
+  onView,
+}: InstitutionCardProps) {
+  const { colors, isDark } = useAppTheme();
   const coverUrl = (institution as any).cover_image_url as string | undefined;
-  const initials = institution.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+  const posts = institution.post_count ?? institution.public_post_count ?? 0;
+  const brandAccent = safeColor(institution.brand_accent_color, palette.violet[600]);
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.9}
-      onPress={onView}
-      className="bg-surface dark:bg-surface-dark rounded-2xl border border-border dark:border-border-dark mb-4"
+    <View
+      style={[
+        styles.cardContainer,
+        {
+          backgroundColor: isDark ? '#18122B' : '#FFFFFF',
+          borderColor: isDark ? '#2E2250' : '#E8E3F7',
+          shadowColor: '#43299F',
+          shadowOpacity: isDark ? 0.45 : 0.09,
+        },
+      ]}
     >
-      {/* Cover */}
-      <View className="h-28 w-full rounded-t-2xl overflow-hidden relative" style={{ backgroundColor: `${brandColor}22` }}>
-        {coverUrl && <Image source={{ uri: coverUrl }} className="w-full h-full" resizeMode="cover" />}
-        <TouchableOpacity
-          onPress={(e) => { e.stopPropagation(); haptics.light(); onFollow(); }}
-          className={`absolute top-3 right-4 px-4 py-2 rounded-full ${isFollowing ? 'bg-surface-hover dark:bg-surface-hover-dark border border-border dark:border-border-dark' : 'bg-accent-start'}`}
-        >
-          <ThemedText
-            variant="tiny"
-            className={isFollowing ? 'font-semibold' : 'text-white font-semibold'}
-            style={isFollowing ? { color: brandColor } : undefined}
+      {/* ─── Hero Banner ─── */}
+      <Pressable
+        onPress={onView}
+        accessibilityRole="button"
+        accessibilityLabel={`View ${institution.name}`}
+        style={styles.bannerContainer}
+      >
+        {coverUrl ? (
+          <Image
+            source={{ uri: coverUrl }}
+            style={styles.bannerImage}
+            contentFit="cover"
+            transition={200}
+          />
+        ) : (
+          <LinearGradient
+            colors={[brandAccent, '#43299F', '#2B1D66']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.bannerImage}
           >
-            {isFollowing ? 'Following' : 'Follow'}
-          </ThemedText>
-        </TouchableOpacity>
-      </View>
+            {/* Subtle decorative circles for depth when there's no photo */}
+            <View style={styles.decorativeCircle1} />
+            <View style={styles.decorativeCircle2} />
+          </LinearGradient>
+        )}
 
-      {/* Body */}
-      <View className="px-4 pb-4 flex-row gap-4">
-        {/* Logo mark, overlapping the cover */}
-        <View
-          className="w-[72px] h-[72px] rounded-2xl bg-surface dark:bg-surface-dark border border-border dark:border-border-dark items-center justify-center overflow-hidden"
-          style={{
-            marginTop: -28,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.08,
-            shadowRadius: 6,
-            elevation: 3,
-          }}
-        >
-          {institution.logo_url ? (
-            <Image source={{ uri: institution.logo_url }} className="w-full h-full" resizeMode="cover" />
-          ) : (
-            <ThemedText variant="subheading" style={{ color: brandColor }}>{initials}</ThemedText>
-          )}
+        {/* Gradient scrim at bottom of banner for smooth contrast */}
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.4)']}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        />
+
+        {/* Institution Type Badge on top right of banner */}
+        <View style={styles.bannerBadge}>
+          <AppText weight="bold" style={styles.bannerBadgeText}>
+            {TYPE_LABELS[institution.type] ?? institution.type ?? 'Institution'}
+          </AppText>
+        </View>
+      </Pressable>
+
+      {/* ─── Card Body ─── */}
+      <View style={styles.body}>
+        {/* Floating Logo Row */}
+        <View style={styles.floatingHeaderRow}>
+          <Pressable onPress={onView} style={[styles.floatingLogoWrap, { borderColor: isDark ? '#18122B' : '#FFFFFF' }]}>
+            <InstitutionMark
+              name={institution.name}
+              color={institution.brand_accent_color}
+              logoUrl={institution.logo_url}
+              size={56}
+            />
+          </Pressable>
+
+          {/* Right Header Badges: Enrolled / Follow Button */}
+          <View style={styles.headerActions}>
+            {isBound && baseActor ? (
+              <View style={[styles.enrolledBadge, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : '#ECFDF5' }]}>
+                <Ionicons name="checkmark-circle" size={13} color={isDark ? '#34D399' : '#059669'} />
+                <AppText weight="bold" style={{ fontSize: 11.5, color: isDark ? '#34D399' : '#059669' }}>
+                  {ACTOR_LABELS[baseActor] || 'Enrolled'}
+                </AppText>
+              </View>
+            ) : null}
+
+            {/* Follow / Following Button with rich solid background colors */}
+            <Pressable
+              onPress={() => {
+                haptics.light();
+                onFollow();
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={isFollowing ? 'Unfollow' : 'Follow'}
+              style={({ pressed }) => [
+                styles.followBtn,
+                isFollowing
+                  ? {
+                      backgroundColor: isDark ? '#261C4C' : '#EDE8FF',
+                      borderColor: isDark ? '#463777' : '#C7BAF8',
+                    }
+                  : {
+                      backgroundColor: colors.brand,
+                      borderColor: colors.brand,
+                      elevation: 2,
+                      shadowColor: colors.brand,
+                      shadowOpacity: 0.3,
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowRadius: 4,
+                    },
+                { opacity: pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.95 : 1 }] },
+              ]}
+            >
+              <Ionicons
+                name={isFollowing ? 'checkmark-sharp' : 'add'}
+                size={14}
+                color={isFollowing ? colors.brand : '#FFFFFF'}
+              />
+              <AppText
+                weight="bold"
+                style={{
+                  fontSize: 12.5,
+                  color: isFollowing ? colors.brand : '#FFFFFF',
+                }}
+              >
+                {isFollowing ? 'Following' : 'Follow'}
+              </AppText>
+            </Pressable>
+          </View>
         </View>
 
-        {/* Content */}
-        <View className="flex-1 pt-2.5">
-          <View className="flex-row items-center gap-1">
-            <ThemedText variant="subheading" className="text-text dark:text-text-dark" numberOfLines={1}>
+        {/* Institution Title & Details */}
+        <Pressable onPress={onView} style={styles.infoSection}>
+          <View style={styles.titleRow}>
+            <AppText
+              variant="subheading"
+              numberOfLines={2}
+              ellipsizeMode="tail"
+              style={{ fontSize: 16, lineHeight: 22, fontWeight: '700' }}
+            >
               {institution.name}
-            </ThemedText>
-            {isBound && <Ionicons name="checkmark-circle" size={16} color={brandColor} />}
+            </AppText>
           </View>
-          <ThemedText variant="caption" className="text-text-muted dark:text-text-muted-dark mt-0.5">
-            {institution.city}, {institution.country}
-          </ThemedText>
 
-          {baseActor && (
-            <View className="self-start flex-row items-center rounded-full bg-accent-start/10 px-2.5 py-1 mt-2">
-              <Ionicons name="person-circle-outline" size={13} color={brandColor} />
-              <ThemedText variant="tiny" className="text-accent-start font-semibold ml-1" numberOfLines={1}>
-                {ACTOR_LABELS[baseActor] || baseActor}
-              </ThemedText>
-            </View>
-          )}
-
-          {/* Stats */}
-          <View className="flex-row gap-6 mt-3.5">
-            <View
-              accessible
-              accessibilityLabel={`${formatCount(institution.follower_count)} followers`}
-              className="items-center justify-center"
-            >
-              <Ionicons name="people-outline" size={17} color="#0284c7" />
-              <ThemedText variant="tiny" className="text-sky-700 dark:text-sky-300 font-bold mt-1">
-                {formatCount(institution.follower_count)}
-              </ThemedText>
-            </View>
-            <View
-              accessible
-              accessibilityLabel={`${formatCount(institution.post_count ?? institution.public_post_count ?? 0)} posts`}
-              className="items-center justify-center"
-            >
-              <Ionicons name="newspaper-outline" size={17} color="#059669" />
-              <ThemedText variant="tiny" className="text-emerald-700 dark:text-emerald-300 font-bold mt-1">
-                {formatCount(institution.post_count ?? institution.public_post_count ?? 0)}
-              </ThemedText>
-            </View>
+          {/* Location row */}
+          <View style={styles.locationRow}>
+            <Ionicons name="location-outline" size={13} color={colors.textSubtle} />
+            <AppText variant="caption" tone="muted" numberOfLines={1} style={{ fontSize: 12.5, flexShrink: 1 }}>
+              {institution.city ? `${institution.city}, ` : ''}{institution.country || 'Campus'}
+            </AppText>
           </View>
+        </Pressable>
+
+        {/* ─── Metrics Strip ─── */}
+        <View style={[styles.statsStrip, { backgroundColor: isDark ? '#1F1738' : '#F7F5FC' }]}>
+          <View style={styles.statItem}>
+            <Ionicons name="people-outline" size={14} color={colors.brand} />
+            <AppText variant="caption" weight="bold" style={{ fontSize: 12.5, color: colors.text }}>
+              {formatCount(institution.follower_count || 0)}
+            </AppText>
+            <AppText variant="caption" tone="muted" style={{ fontSize: 11.5 }}>
+              Followers
+            </AppText>
+          </View>
+
+          <View style={[styles.statDivider, { backgroundColor: isDark ? '#2E2250' : '#E5E0F4' }]} />
+
+          <View style={styles.statItem}>
+            <Ionicons name="newspaper-outline" size={14} color={colors.brand} />
+            <AppText variant="caption" weight="bold" style={{ fontSize: 12.5, color: colors.text }}>
+              {formatCount(posts)}
+            </AppText>
+            <AppText variant="caption" tone="muted" style={{ fontSize: 11.5 }}>
+              Posts
+            </AppText>
+          </View>
+
+          <View style={[styles.statDivider, { backgroundColor: isDark ? '#2E2250' : '#E5E0F4' }]} />
+
+          <Pressable
+            onPress={onView}
+            style={({ pressed }) => [
+              styles.viewCampusBtn,
+              {
+                backgroundColor: pressed ? colors.brandPressed : colors.brand,
+              },
+            ]}
+          >
+            <AppText weight="bold" style={{ fontSize: 12, color: '#FFFFFF' }}>
+              Explore
+            </AppText>
+            <Ionicons name="chevron-forward" size={13} color="#FFFFFF" />
+          </Pressable>
         </View>
-
       </View>
-    </TouchableOpacity>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  cardContainer: {
+    marginBottom: 16,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+  },
+  bannerContainer: {
+    width: '100%',
+    height: 98,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  bannerImage: {
+    width: '100%',
+    height: '100%',
+  },
+  decorativeCircle1: {
+    position: 'absolute',
+    right: -20,
+    top: -20,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  decorativeCircle2: {
+    position: 'absolute',
+    left: '40%',
+    bottom: -30,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  bannerBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 12,
+    paddingHorizontal: 9,
+    paddingVertical: 3.5,
+    borderRadius: 12,
+    backgroundColor: 'rgba(16, 12, 32, 0.65)',
+  },
+  bannerBadgeText: {
+    fontSize: 10.5,
+    color: '#FFFFFF',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  body: {
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+    paddingTop: 0,
+  },
+  floatingHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    marginTop: -28,
+    marginBottom: 8,
+  },
+  floatingLogoWrap: {
+    borderRadius: 20,
+    borderWidth: 3,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingBottom: 4,
+  },
+  enrolledBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  followBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 13,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1.5,
+  },
+  infoSection: {
+    marginBottom: 12,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  statsStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  statDivider: {
+    width: 1,
+    height: 16,
+  },
+  viewCampusBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+  },
+});

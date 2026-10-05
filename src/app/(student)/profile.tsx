@@ -1,50 +1,127 @@
 import { ScrollView, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from 'nativewind';
-import { ThemedText } from '@/ui/ThemedText';
+import { AppText } from '@/ui/AppText';
 import { StatsCards } from '@/components/student/marks/StatsCards';
 import { AchievementsRow } from '@/components/student/marks/AchievementsRow';
+import { useAppTheme } from '@/ui/useAppTheme';
+import { useBottomTabOffset } from '@/ui/tabBarOptions';
 import { haptics } from '@/lib/haptics';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { initialsFromName } from '@/lib/format';
 import { href } from '@/lib/href';
 
 const THEMES = [
-  { id: 'light', label: 'Light' },
-  { id: 'dark', label: 'Dark' },
-  { id: 'system', label: 'System' },
+  { id: 'light', label: 'Light', icon: 'sunny-outline' as const },
+  { id: 'dark', label: 'Dark', icon: 'moon-outline' as const },
+  { id: 'system', label: 'System', icon: 'phone-portrait-outline' as const },
 ] as const;
 
 export default function StudentProfileScreen() {
   const router = useRouter();
-  const { user, currentMembership, memberships, logout, selectInstitution, clearSelectedInstitution, getDashboardRoute } = useAuth();
+  const { colors, isDark } = useAppTheme();
+  const bottomOffset = useBottomTabOffset(32);
+  const { user, currentMembership, memberships, logout, selectInstitution, clearSelectedInstitution, getDashboardRoute } =
+    useAuth();
   const { colorScheme, setColorScheme } = useColorScheme();
   const initials = initialsFromName(user?.full_name || 'Campusly');
 
   return (
-    <ScrollView className="flex-1 bg-bg dark:bg-bg-dark" contentContainerStyle={{ paddingBottom: 48 }}>
-      <View className="items-center px-5 pt-6 pb-4">
-        <View className="w-20 h-20 rounded-full bg-accent-start/15 items-center justify-center mb-3">
-          <ThemedText variant="heading" className="text-accent-start">{initials}</ThemedText>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      contentContainerStyle={{ paddingTop: 16, paddingBottom: bottomOffset, flexGrow: 1 }}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* ─── Profile Header Identity Card ─── */}
+      <View
+        style={{
+          marginHorizontal: 20,
+          marginBottom: 20,
+          borderRadius: 28,
+          backgroundColor: colors.surface,
+          borderWidth: 1,
+          borderColor: colors.border,
+          padding: 24,
+          alignItems: 'center',
+          elevation: 2,
+          shadowColor: '#170F2E',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: isDark ? 0.3 : 0.06,
+          shadowRadius: 10,
+        }}
+      >
+        <View
+          style={{
+            width: 80,
+            height: 80,
+            borderRadius: 40,
+            backgroundColor: colors.brandSoft,
+            borderWidth: 2,
+            borderColor: colors.brand,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 14,
+          }}
+        >
+          <AppText variant="display" weight="extrabold" tone="brand">
+            {initials}
+          </AppText>
         </View>
-        <ThemedText variant="heading">{user?.full_name}</ThemedText>
-        <ThemedText variant="caption" className="text-text-muted dark:text-text-muted-dark">@{user?.username}</ThemedText>
+
+        <AppText variant="heading" weight="extrabold" style={{ textAlign: 'center' }}>
+          {user?.full_name}
+        </AppText>
+        <AppText variant="caption" tone="muted" style={{ marginTop: 2 }}>
+          @{user?.username}
+        </AppText>
+
         {user?.email ? (
-          <ThemedText variant="tiny" className="text-text-muted dark:text-text-muted-dark mt-1">{user.email}</ThemedText>
+          <AppText variant="caption" tone="muted" style={{ marginTop: 2 }}>
+            {user.email}
+          </AppText>
         ) : null}
-        <ThemedText variant="caption" className="mt-2">{currentMembership?.institution_name}</ThemedText>
+
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            marginTop: 14,
+            paddingHorizontal: 12,
+            paddingVertical: 6,
+            borderRadius: 14,
+            backgroundColor: colors.surfaceMuted,
+            borderWidth: 1,
+            borderColor: colors.border,
+          }}
+        >
+          <Ionicons name="school-outline" size={15} color={colors.brand} />
+          <AppText variant="caption" weight="semibold" tone="brand">
+            {currentMembership?.institution_name || 'Academic Institution'}
+          </AppText>
+        </View>
       </View>
 
-      <ThemedText variant="subheading" className="px-5 mb-2">Academic overview</ThemedText>
+      {/* ─── Quick Academic Metrics ─── */}
+      <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
+        <AppText variant="subheading" weight="bold">
+          Academic Overview
+        </AppText>
+      </View>
       <StatsCards stats={{}} />
 
-      <ThemedText variant="subheading" className="px-5 mb-2">Absence summary</ThemedText>
-      <ThemedText variant="muted" className="px-5 mb-4">Absence totals will appear when the student absences API is available.</ThemedText>
-
+      {/* ─── Achievements ─── */}
       <AchievementsRow badges={[]} />
 
-      <ThemedText variant="subheading" className="px-5 mb-2">Theme</ThemedText>
-      <View className="flex-row px-5 gap-2 mb-6">
+      {/* ─── Appearance / Theme Section ─── */}
+      <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
+        <AppText variant="subheading" weight="bold">
+          Display Theme
+        </AppText>
+      </View>
+
+      <View style={{ flexDirection: 'row', paddingHorizontal: 20, gap: 10, marginBottom: 24 }}>
         {THEMES.map((theme) => {
           const active = (colorScheme ?? 'system') === theme.id;
           return (
@@ -56,46 +133,214 @@ export default function StudentProfileScreen() {
                 haptics.selection();
                 setColorScheme(theme.id);
               }}
-              className={`flex-1 py-3 rounded-xl border items-center ${
-                active ? 'bg-accent-start border-accent-start' : 'bg-surface dark:bg-surface-dark border-border dark:border-border-dark'
-              }`}
+              activeOpacity={0.8}
+              style={{
+                flex: 1,
+                paddingVertical: 14,
+                borderRadius: 18,
+                backgroundColor: active ? colors.brand : colors.surface,
+                borderWidth: 1,
+                borderColor: active ? colors.brand : colors.border,
+                alignItems: 'center',
+                gap: 6,
+                elevation: active ? 2 : 0,
+              }}
             >
-              <ThemedText variant="caption" className={active ? 'text-white font-semibold' : ''}>{theme.label}</ThemedText>
+              <Ionicons
+                name={theme.icon}
+                size={18}
+                color={active ? '#FFFFFF' : colors.textMuted}
+              />
+              <AppText
+                variant="caption"
+                weight={active ? 'bold' : 'medium'}
+                style={{ color: active ? '#FFFFFF' : colors.text }}
+              >
+                {theme.label}
+              </AppText>
             </TouchableOpacity>
           );
         })}
       </View>
 
-      <ThemedText variant="subheading" className="px-5 mb-2">Account</ThemedText>
-      <View className="mx-5 mb-6 rounded-2xl bg-surface dark:bg-surface-dark border border-border dark:border-border-dark">
-        <View className="px-4 py-3 border-b border-border dark:border-border-dark">
-          <ThemedText variant="body">Change password</ThemedText>
-          <ThemedText variant="tiny" className="text-text-muted dark:text-text-muted-dark">Available from the web account settings for now</ThemedText>
-        </View>
-        <View className="px-4 py-3">
-          <ThemedText variant="body">Notifications</ThemedText>
-          <ThemedText variant="tiny" className="text-text-muted dark:text-text-muted-dark">Push notifications enabled for attendance alerts</ThemedText>
+      {/* ─── Account Settings Links ─── */}
+      <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
+        <AppText variant="subheading" weight="bold">
+          Account Settings
+        </AppText>
+      </View>
+
+      <View
+        style={{
+          marginHorizontal: 20,
+          marginBottom: 24,
+          borderRadius: 20,
+          backgroundColor: colors.surface,
+          borderWidth: 1,
+          borderColor: colors.border,
+          overflow: 'hidden',
+        }}
+      >
+        <TouchableOpacity
+          onPress={() => {
+            haptics.light();
+            router.push(href('/(tabs)/profile'));
+          }}
+          activeOpacity={0.7}
+          style={{
+            paddingHorizontal: 16,
+            paddingVertical: 14,
+            borderBottomWidth: 1,
+            borderBottomColor: colors.border,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <View
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 12,
+                backgroundColor: colors.surfaceMuted,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Ionicons name="person-outline" size={18} color={colors.brand} />
+            </View>
+            <View>
+              <AppText variant="body" weight="semibold">
+                Edit Personal Profile
+              </AppText>
+              <AppText variant="caption" tone="muted" style={{ marginTop: 1 }}>
+                Name, username and phone number
+              </AppText>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
+        </TouchableOpacity>
+
+        <View
+          style={{
+            paddingHorizontal: 16,
+            paddingVertical: 14,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <View
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 12,
+                backgroundColor: colors.surfaceMuted,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Ionicons name="notifications-outline" size={18} color={colors.brand} />
+            </View>
+            <View>
+              <AppText variant="body" weight="semibold">
+                Classroom Alerts
+              </AppText>
+              <AppText variant="caption" tone="muted" style={{ marginTop: 1 }}>
+                Push alerts enabled for attendance check-ins
+              </AppText>
+            </View>
+          </View>
+          <Ionicons name="checkmark-circle" size={18} color="#10B981" />
         </View>
       </View>
 
-      <ThemedText variant="subheading" className="px-5 mb-2">Switch institution</ThemedText>
-      {memberships.filter((item) => item.status === 'active').map((membership) => (
-        <TouchableOpacity
-          key={membership.membership_id}
-          accessibilityRole="button"
-          accessibilityLabel={`Switch to ${membership.institution_name}`}
-          onPress={async () => {
-            haptics.light();
-            await selectInstitution(membership.institution_id, membership.membership_id);
-            router.replace(href(getDashboardRoute(membership.base_actor)));
-          }}
-          className="mx-5 mb-2 rounded-xl bg-surface dark:bg-surface-dark border border-border dark:border-border-dark px-4 py-3"
-        >
-          <ThemedText variant="body" className="font-semibold">{membership.institution_name}</ThemedText>
-          <ThemedText variant="tiny" className="text-text-muted dark:text-text-muted-dark capitalize">{membership.base_actor}</ThemedText>
-        </TouchableOpacity>
-      ))}
+      {/* ─── Switch Institution Section ─── */}
+      <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
+        <AppText variant="subheading" weight="bold">
+          Enrolled Institutions
+        </AppText>
+      </View>
 
+      {memberships
+        .filter((item) => item.status === 'active')
+        .map((membership) => {
+          const isSelected = membership.membership_id === currentMembership?.membership_id;
+          return (
+            <TouchableOpacity
+              key={membership.membership_id}
+              accessibilityRole="button"
+              accessibilityLabel={`Switch to ${membership.institution_name}`}
+              onPress={async () => {
+                if (isSelected) return;
+                haptics.medium();
+                await selectInstitution(membership.institution_id, membership.membership_id);
+                router.replace(href(getDashboardRoute(membership.base_actor)));
+              }}
+              activeOpacity={0.8}
+              style={{
+                marginHorizontal: 20,
+                marginBottom: 10,
+                borderRadius: 18,
+                backgroundColor: colors.surface,
+                borderWidth: 1.5,
+                borderColor: isSelected ? colors.brand : colors.border,
+                padding: 16,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, paddingRight: 8 }}>
+                <View
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 12,
+                    backgroundColor: isSelected ? colors.brandSoft : colors.surfaceMuted,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Ionicons
+                    name="business-outline"
+                    size={18}
+                    color={isSelected ? colors.brand : colors.textMuted}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <AppText variant="body" weight="bold" numberOfLines={1}>
+                    {membership.institution_name}
+                  </AppText>
+                  <AppText variant="caption" tone="muted" style={{ textTransform: 'capitalize', marginTop: 2 }}>
+                    {membership.base_actor}
+                  </AppText>
+                </View>
+              </View>
+
+              {isSelected ? (
+                <View
+                  style={{
+                    paddingHorizontal: 10,
+                    paddingVertical: 4,
+                    borderRadius: 10,
+                    backgroundColor: colors.brandSoft,
+                  }}
+                >
+                  <AppText variant="caption" weight="bold" tone="brand">
+                    Active
+                  </AppText>
+                </View>
+              ) : (
+                <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
+              )}
+            </TouchableOpacity>
+          );
+        })}
+
+      {/* ─── Back to Discover ─── */}
       <TouchableOpacity
         accessibilityRole="button"
         accessibilityLabel="Back to Discover"
@@ -104,11 +349,24 @@ export default function StudentProfileScreen() {
           void clearSelectedInstitution();
           router.replace('/(tabs)/discover');
         }}
-        className="mx-5 mt-4 rounded-xl bg-surface dark:bg-surface-dark px-4 py-3 items-center"
+        activeOpacity={0.8}
+        style={{
+          marginHorizontal: 20,
+          marginTop: 10,
+          borderRadius: 18,
+          backgroundColor: colors.surface,
+          borderWidth: 1,
+          borderColor: colors.border,
+          paddingVertical: 14,
+          alignItems: 'center',
+        }}
       >
-        <ThemedText variant="body" className="font-semibold">Back to Discover</ThemedText>
+        <AppText variant="body" weight="semibold">
+          Back to Discover
+        </AppText>
       </TouchableOpacity>
 
+      {/* ─── Logout ─── */}
       <TouchableOpacity
         accessibilityRole="button"
         accessibilityLabel="Log out"
@@ -117,9 +375,25 @@ export default function StudentProfileScreen() {
           void logout();
           router.replace('/(auth)');
         }}
-        className="mx-5 mt-3 rounded-xl bg-red-500/10 px-4 py-3 items-center"
+        activeOpacity={0.8}
+        style={{
+          marginHorizontal: 20,
+          marginTop: 10,
+          borderRadius: 18,
+          backgroundColor: isDark ? 'rgba(239, 68, 68, 0.12)' : '#FEF2F2',
+          borderWidth: 1,
+          borderColor: isDark ? 'rgba(239, 68, 68, 0.25)' : '#FCA5A5',
+          paddingVertical: 14,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+        }}
       >
-        <ThemedText variant="body" className="text-red-500 font-semibold">Log out</ThemedText>
+        <Ionicons name="log-out-outline" size={18} color="#DC2626" />
+        <AppText variant="body" weight="bold" style={{ color: '#DC2626' }}>
+          Log Out
+        </AppText>
       </TouchableOpacity>
     </ScrollView>
   );

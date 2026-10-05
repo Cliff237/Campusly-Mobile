@@ -2,6 +2,7 @@
 import { TouchableOpacity, type TouchableOpacityProps } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from 'nativewind';
+import React from 'react';
 
 interface IconButtonProps extends TouchableOpacityProps {
   name: keyof typeof Ionicons.glyphMap;

@@ -7,12 +7,14 @@ import { api } from '@/lib/api';
 import { authStorage } from '@/lib/authStorage';
 import { fetchMyMemberships, type Membership } from '@/lib/api/discover/memberships';
 import { getDeviceIdentifier } from '@/lib/api/ble';
+import { requestBluetoothPermissions } from '@/lib/bleScanner';
 import {
   requestNotificationPermission,
   getPushToken,
   registerPushTokenWithBackend,
   setupNotificationListener,
   setupForegroundNotificationListener,
+  getLastNotificationResponse,
 } from '@/lib/notifications';
 
 export interface User {
@@ -129,10 +131,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 }
               }
             }
+
+            // Also ensure Bluetooth permissions are requested on session restore
+            try {
+              await requestBluetoothPermissions();
+            } catch (error) {
+              console.warn('[Auth] Bluetooth permissions check failed on restore:', error);
+            }
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Unknown session restore error';
-            const isUnauthorized = /unauthorized|401|token/i.test(message);
-            console.error('[Auth] Session restore failed', { message, isUnauthorized });
+            const isUnauthorized = /unauthorized|401|token/i.test(message) || (error as any)?.status === 401;
+            if (isUnauthorized) {
+              console.log('[Auth] Saved session expired or unauthorized; sign-in is required.');
+            } else {
+              console.error('[Auth] Session restore failed', { message, isUnauthorized });
+            }
 
             // A cached user must never keep an invalid access token alive.
             // The backend currently has no token-refresh endpoint, so a 401 is
@@ -179,6 +192,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Setup notification listeners
   useEffect(() => {
+    // Check if app was cold-started from an attendance notification
+    void getLastNotificationResponse().then((response) => {
+      if (response) {
+        const data = response.notification?.request?.content?.data as any;
+        console.log('[Auth] App launched from cold-start notification:', data);
+        if (data?.type === 'attendance' && data?.sessionId) {
+          router.push({
+            pathname: '/(student)/schedule',
+            params: { sessionId: data.sessionId },
+          });
+        }
+      }
+    });
+
     const cleanupTapped = setupNotificationListener((notification, action) => {
       console.log('[Auth] Notification tapped:', notification, 'Action:', action);
       // Handle navigation to attendance screen based on notification data
@@ -230,19 +257,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     await loadMemberships(newAccessToken);
 
-    // Request notification permission and register push token
-    const hasPermission = await requestNotificationPermission();
-    if (hasPermission) {
-      const pushToken = await getPushToken();
-      if (pushToken) {
-        const deviceId = await getDeviceIdentifier();
-        console.log('[Auth] Registering push token on login:', { deviceId, pushToken });
-        try {
-          await registerPushTokenWithBackend(newAccessToken, pushToken, deviceId);
-        } catch (error) {
-          console.error('[Auth] Failed to register push token:', error);
+    // 1. Request notification permission and register push token
+    try {
+      const hasPermission = await requestNotificationPermission();
+      if (hasPermission) {
+        const pushToken = await getPushToken();
+        if (pushToken) {
+          const deviceId = await getDeviceIdentifier();
+          console.log('[Auth] Registering push token on login:', { deviceId, pushToken });
+          try {
+            await registerPushTokenWithBackend(newAccessToken, pushToken, deviceId);
+          } catch (error) {
+            console.error('[Auth] Failed to register push token:', error);
+          }
         }
       }
+    } catch (error) {
+      console.warn('[Auth] Notification permission error on login:', error);
+    }
+
+    // 2. Request Bluetooth permissions on login
+    try {
+      console.log('[Auth] Requesting Bluetooth permissions on login');
+      await requestBluetoothPermissions();
+    } catch (error) {
+      console.warn('[Auth] Bluetooth permissions request failed on login:', error);
     }
 
     return newUser;

@@ -105,19 +105,29 @@ export async function requestBluetoothAdvertisingPermissions(): Promise<boolean>
   return true;
 }
 
+let sharedBleManager: BleManager | null = null;
+function getSharedBleManager(): BleManager {
+  if (!sharedBleManager) {
+    sharedBleManager = new BleManager();
+  }
+  return sharedBleManager;
+}
+
 /**
  * Check if Bluetooth is powered on
  */
-export async function isBluetoothEnabled(manager: BleManager): Promise<boolean> {
-  const state = await manager.state();
+export async function isBluetoothEnabled(manager?: BleManager): Promise<boolean> {
+  const m = manager ?? getSharedBleManager();
+  const state = await m.state();
   return state === State.PoweredOn;
 }
 
 /**
  * Prompt user to enable Bluetooth if it's off
  */
-export async function ensureBluetoothEnabled(manager: BleManager): Promise<boolean> {
-  const state = await manager.state();
+export async function ensureBluetoothEnabled(manager?: BleManager): Promise<boolean> {
+  const m = manager ?? getSharedBleManager();
+  const state = await m.state();
 
   if (state === State.PoweredOn) {
     return true;
@@ -126,14 +136,20 @@ export async function ensureBluetoothEnabled(manager: BleManager): Promise<boole
   if (state === State.PoweredOff) {
     Alert.alert(
       'Bluetooth Required',
-      'Please enable Bluetooth to scan for attendance beacons.',
+      'Please enable Bluetooth to continue with classroom attendance.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Enable',
           onPress: async () => {
             if (Platform.OS === 'android') {
-              await Linking.sendIntent('android.bluetooth.adapter.action.REQUEST_ENABLE');
+              try {
+                await Linking.sendIntent('android.bluetooth.adapter.action.REQUEST_ENABLE');
+              } catch {
+                await Linking.openSettings();
+              }
+            } else {
+              await Linking.openURL('App-Prefs:Bluetooth');
             }
           },
         },
@@ -145,7 +161,11 @@ export async function ensureBluetoothEnabled(manager: BleManager): Promise<boole
   if (state === State.Unauthorized) {
     Alert.alert(
       'Bluetooth Unauthorized',
-      'The app does not have permission to use Bluetooth. Please check your device settings.'
+      'The app does not have permission to use Bluetooth. Please check your device settings.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Open Settings', onPress: () => Linking.openSettings() },
+      ]
     );
     return false;
   }
@@ -179,7 +199,7 @@ export function useBleScanner({
 }: UseBleScannerOptions = {}): UseBleScannerReturn {
   const managerRef = useRef<BleManager | null>(null);
   const isScanningRef = useRef(false);
-  const stopScanTimeoutRef = useRef<number | null>(null);
+  const stopScanTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const subscriptionRef = useRef<(() => void) | null>(null);
   const bluetoothEnabledRef = useRef(false);
 
@@ -291,7 +311,7 @@ export function useBleScanner({
 export class BleScannerService {
   private manager: BleManager;
   private isScanning = false;
-  private stopScanTimeout: number | null = null;
+  private stopScanTimeout: ReturnType<typeof setTimeout> | null = null;
   private subscription: (() => void) | null = null;
 
   constructor() {

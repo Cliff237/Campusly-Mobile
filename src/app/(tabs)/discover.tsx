@@ -1,16 +1,22 @@
 /* eslint-disable import/first */
-/* eslint-disable import/no-unresolved */
 // app/(discover)/index.tsx  (or wherever DiscoverScreen lives)
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, FlatList, RefreshControl, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, FlatList, RefreshControl, ActivityIndicator, Pressable, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
-import { ThemedText } from '@/ui/ThemedText';
-import { ThemedInput } from '@/ui/ThemedInput';
+import { AppText } from '@/ui/AppText';
+import { Chip } from '@/ui/Chip';
+import { EmptyState } from '@/ui/EmptyState';
+import { ScreenHero } from '@/ui/ScreenHero';
+import { SearchField } from '@/ui/SearchField';
+import { Skeleton } from '@/ui/Skeleton';
+import { COLUMN, useColumnInset } from '@/ui/layout';
+import { useAppTheme } from '@/ui/useAppTheme';
 import { StoriesRow } from '@/components/discover/StoriesRow';
 import { InstitutionCard } from '@/components/discover/InstitutionCard';
 import { FilterBottomSheet } from '@/components/discover/FilterBottomSheet';
@@ -29,8 +35,46 @@ const QUICK_TYPES = [
   { value: 'training_school', label: 'Training' },
 ] as const;
 
+/** Card-shaped placeholder shown while the directory loads for the first time. */
+function DirectorySkeleton() {
+  const { colors } = useAppTheme();
+  return (
+    <View style={[COLUMN, { paddingHorizontal: 20 }]}>
+      {[0, 1, 2].map((i) => (
+        <View
+          key={i}
+          style={{
+            marginBottom: 14,
+            padding: 16,
+            borderRadius: 22,
+            borderWidth: 1,
+            borderColor: colors.border,
+            backgroundColor: colors.surface,
+          }}
+        >
+          <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}>
+            <Skeleton width={58} height={58} radius={19} />
+            <View style={{ flex: 1, gap: 10 }}>
+              <Skeleton width="80%" height={16} />
+              <Skeleton width="45%" height={12} />
+            </View>
+          </View>
+          <Skeleton width={96} height={26} radius={13} style={{ marginTop: 14 }} />
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 26 }}>
+            <Skeleton width={140} height={14} style={{ marginTop: 10 }} />
+            <Skeleton width={92} height={38} radius={19} />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 export default function DiscoverScreen() {
   const router = useRouter();
+  const { colors, shadow } = useAppTheme();
+  const insets = useSafeAreaInsets();
+  const inset = useColumnInset();
   const { user, memberships, selectInstitution, getMembershipForInstitution, getDashboardRoute, accessToken } = useAuth();
 
   const [institutions, setInstitutions] = useState<DirectoryInstitution[]>([]);
@@ -124,83 +168,103 @@ export default function DiscoverScreen() {
   // FlatList doesn't treat it as a new component type on every keystroke —
   // that was remounting the header, including the search input, on each character.
   const header = (
-    <View className="px-5 pt-3 pb-5">
-      <Animated.View entering={FadeInDown.duration(400)} className="mb-6">
-        <ThemedText variant="display" className="text-text dark:text-text-dark">
-          {user?.full_name ? `Hello, ${user.full_name.split(' ')[0]}` : 'Discover'}
-        </ThemedText>
-        <ThemedText variant="muted" className="mt-1">
-          {activeMemberships.length > 0 ? 'Switch campuses or explore new ones.' : 'Find your institution on Campusly.'}
-        </ThemedText>
-      </Animated.View>
-
-      <ThemedInput
-        placeholder="Search institutions"
-        value={search}
-        onChangeText={setSearch}
-        leftIcon={<Ionicons name="search-outline" size={20} color="#64748b" />}
-        containerStyle={{ marginBottom: 20 }}
+    <View>
+      <ScreenHero
+        overlap={30}
+        title={user?.full_name ? `Hello, ${user.full_name.split(' ')[0]}` : 'Discover'}
+        subtitle={activeMemberships.length > 0 ? 'Switch campuses or explore new ones.' : 'Find your institution on Campusly.'}
       />
 
-      <View className="flex-row items-center justify-between mb-6 border-b border-border dark:border-border-dark">
-        <View className="flex-row gap-5">
-          {QUICK_TYPES.map(t => (
-            <TouchableOpacity
-              key={t.value}
-              onPress={() => { haptics.light(); setType(t.value); }}
-              className="pb-3"
-              style={{ borderBottomWidth: 2, borderBottomColor: type === t.value ? '#4f46e5' : 'transparent' }}
-            >
-              <ThemedText
-                variant="caption"
-                className={type === t.value ? 'text-accent-start font-semibold' : 'text-text-muted dark:text-text-muted-dark'}
-              >
-                {t.label}
-              </ThemedText>
-            </TouchableOpacity>
-          ))}
-        </View>
-        <TouchableOpacity
+      {/* search + filters float over the lower edge of the hero */}
+      <View style={[COLUMN, { flexDirection: 'row', gap: 10, paddingHorizontal: 20, marginTop: -28 }]}>
+        <SearchField
+          elevated
+          placeholder="Search institutions"
+          value={search}
+          onChangeText={setSearch}
+          containerStyle={{ flex: 1 }}
+        />
+        <Pressable
           onPress={() => { haptics.light(); setFilterModalVisible(true); }}
-          className="flex-row items-center gap-1 pb-3"
+          accessibilityRole="button"
+          accessibilityLabel="Filters"
+          style={({ pressed }) => ({
+            width: 54,
+            height: 54,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: 18,
+            borderWidth: 1.5,
+            borderColor: colors.border,
+            backgroundColor: pressed ? colors.surfaceMuted : colors.surface,
+            elevation: 3,
+            shadowColor: '#43299F',
+            shadowOffset: { width: 0, height: 3 },
+            shadowOpacity: 0.1,
+            shadowRadius: 6,
+          })}
         >
-          <Ionicons name="options-outline" size={16} color="#64748b" />
-          <ThemedText variant="caption" className="text-text-muted dark:text-text-muted-dark">More</ThemedText>
-        </TouchableOpacity>
+          <Ionicons name="options-outline" size={22} color={colors.text} />
+        </Pressable>
       </View>
 
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ marginTop: 18 }}
+        contentContainerStyle={{ paddingHorizontal: inset, gap: 8 }}
+      >
+        {QUICK_TYPES.map((t) => (
+          <Chip
+            key={t.value}
+            label={t.label}
+            selected={type === t.value}
+            onPress={() => { haptics.light(); setType(t.value); }}
+          />
+        ))}
+      </ScrollView>
+
       {activeMemberships.length > 0 && (
-        <Animated.View entering={FadeInDown.duration(400).delay(100)} className="mb-6">
-          <ThemedText variant="subheading" className="mb-3 text-text dark:text-text-dark">Your campuses</ThemedText>
+        <Animated.View entering={FadeInDown.duration(400).delay(100)} style={{ marginTop: 26 }}>
+          <AppText variant="subheading" style={[COLUMN, { paddingHorizontal: 20, marginBottom: 12 }]}>
+            Your campuses
+          </AppText>
           <StoriesRow memberships={activeMemberships} onPress={openMembershipDashboard} />
         </Animated.View>
       )}
 
-      <ThemedText variant="subheading" className="mb-1 text-text dark:text-text-dark">
-        {activeMemberships.length > 0 ? 'Explore more' : 'All institutions'}
-      </ThemedText>
+      <View
+        style={[
+          COLUMN,
+          { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginTop: 26, marginBottom: 14 },
+        ]}
+      >
+        <AppText variant="subheading">
+          {activeMemberships.length > 0 ? 'Explore more' : 'All institutions'}
+        </AppText>
+        {loading && !refreshing && institutions.length > 0 ? <ActivityIndicator size="small" color={colors.brand} /> : null}
+      </View>
     </View>
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-bg dark:bg-bg-dark">
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <StatusBar style="light" />
       <FlatList
         data={institutions}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={header}
-        ListEmptyComponent={!loading ? (
-          <View className="items-center justify-center py-16 px-8">
-            <View className="w-16 h-16 rounded-full bg-surface-hover dark:bg-surface-hover-dark items-center justify-center mb-4">
-              <Ionicons name="school-outline" size={28} color="#64748b" />
-            </View>
-            <ThemedText variant="subheading" className="text-center text-text dark:text-text-dark mb-1">No institutions found</ThemedText>
-            <ThemedText variant="muted" className="text-center">Try adjusting your search or filters.</ThemedText>
-          </View>
-        ) : null}
+        ListEmptyComponent={
+          loading ? (
+            <DirectorySkeleton />
+          ) : (
+            <EmptyState icon="school-outline" title="No institutions found" message="Try adjusting your search or filters." />
+          )
+        }
         renderItem={({ item, index }) => {
           const membership = memberships?.find(m => m.institution_id === item.id && m.status === 'active');
           return (
-            <Animated.View entering={FadeInDown.duration(350).delay(Math.min(index, 6) * 40)} className="px-5">
+            <Animated.View entering={FadeInDown.duration(350).delay(Math.min(index, 6) * 40)} style={[COLUMN, { paddingHorizontal: 20 }]}>
               <InstitutionCard
                 institution={item}
                 isFollowing={item.is_following}
@@ -212,16 +276,26 @@ export default function DiscoverScreen() {
             </Animated.View>
           );
         }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor="#4f46e5" />}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => loadData(true)}
+            tintColor={colors.brand}
+            colors={[colors.brand]}
+            progressBackgroundColor={colors.surface}
+          />
+        }
+        contentContainerStyle={{ paddingBottom: 112 }}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       />
 
-      {loading && !refreshing && (
-        <View className="absolute inset-0 items-center justify-center bg-bg/80 dark:bg-bg-dark/80 z-10">
-          <ActivityIndicator size="large" color="#4f46e5" />
-        </View>
-      )}
+      {/* keeps the status-bar icons readable once the hero has scrolled away */}
+      {insets.top > 0 ? (
+        <View
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: colors.heroGradient[0], zIndex: 5, pointerEvents: 'none' }}
+        />
+      ) : null}
 
       <FilterBottomSheet
         visible={filterModalVisible}
@@ -235,6 +309,6 @@ export default function DiscoverScreen() {
       />
 
       <OtpFab onRedeemSuccess={() => { loadData(true); }} />
-    </SafeAreaView>
+    </View>
   );
 }

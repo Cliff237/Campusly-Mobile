@@ -1,18 +1,16 @@
-// src/components/auth/LoginForm.tsx
 import { useState } from 'react';
-import { View, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Pressable, TouchableOpacity, View } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import { useColorScheme } from 'nativewind';
-import { ThemedText } from '@/ui/';
-import { ThemedInput } from '@/ui/ThemedInput';
+import { AppText } from '@/ui/AppText';
 import { GradientButton } from '@/ui/GradientButton';
-import { AnimatedBackground } from '@/ui/AnimatedBackground';
+import { InlineAlert } from '@/ui/InlineAlert';
+import { TextField } from '@/ui/TextField';
+import { useAppTheme } from '@/ui/useAppTheme';
+import { AuthShell } from './AuthShell';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { showToast } from '@/ui/Toast';
 import { haptics } from '@/lib/haptics';
@@ -32,8 +30,7 @@ interface LoginFormProps {
 export function LoginForm({ onSwitchState, onLoginUnverified }: LoginFormProps) {
   const router = useRouter();
   const { login } = useAuth();
-  const { colorScheme } = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { colors } = useAppTheme();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -44,6 +41,7 @@ export function LoginForm({ onSwitchState, onLoginUnverified }: LoginFormProps) 
     formState: { errors },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
+    defaultValues: { identifier: '', password: '' },
   });
 
   const onSubmit = async (data: LoginFormValues) => {
@@ -82,181 +80,90 @@ export function LoginForm({ onSwitchState, onLoginUnverified }: LoginFormProps) 
   };
 
   return (
-    <View style={{ flex: 1 }}>
-      <AnimatedBackground />
-      
-      <SafeAreaView style={{ flex: 1 }}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 1 }}
-        >
-          <ScrollView
-            contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingVertical: 32 }}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
+    <AuthShell
+      title="Welcome back"
+      subtitle="Sign in to your Campusly account"
+      footer={
+        <View style={{ paddingTop: 20, borderTopWidth: 1, borderTopColor: colors.border, alignItems: 'center' }}>
+          <TouchableOpacity
+            onPress={() => {
+              haptics.light();
+              onSwitchState('signup');
+            }}
+            activeOpacity={0.7}
+            style={{ paddingVertical: 8 }}
           >
-            <View style={{ paddingHorizontal: 24 }}>
-              {/* Logo & Welcome */}
-              <Animated.View 
-                entering={FadeInDown.duration(600).springify()}
-                style={{ alignItems: 'center', marginBottom: 40 }}
-              >
-                <View
-                  style={{
-                    width: 72,
-                    height: 72,
-                    borderRadius: 20,
-                    backgroundColor: '#4f46e5',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginBottom: 20,
-                    shadowColor: '#4f46e5',
-                    shadowOffset: { width: 0, height: 8 },
-                    shadowOpacity: 0.4,
-                    shadowRadius: 16,
-                    elevation: 12,
-                  }}
+            <AppText variant="body" tone="muted" align="center">
+              New to Campusly?{' '}
+              <AppText variant="body" weight="bold" tone="brand">
+                Create an account
+              </AppText>
+            </AppText>
+          </TouchableOpacity>
+        </View>
+      }
+    >
+      <View style={{ gap: 18 }}>
+        <Controller
+          control={control}
+          name="identifier"
+          render={({ field: { onChange, onBlur, value } }) => (
+            <TextField
+              label="Email or username"
+              placeholder="Enter your email or username"
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              error={errors.identifier?.message}
+              leftIcon="person-outline"
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+          )}
+        />
+
+        <Controller
+          control={control}
+          name="password"
+          render={({ field: { onChange, onBlur, value } }) => (
+            <TextField
+              label="Password"
+              placeholder="Enter your password"
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              error={errors.password?.message}
+              secureTextEntry={!showPassword}
+              leftIcon="lock-closed-outline"
+              rightSlot={
+                <Pressable
+                  onPress={() => setShowPassword((v) => !v)}
+                  hitSlop={12}
+                  accessibilityRole="button"
+                  accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
                 >
-                  <ThemedText 
-                    variant="heading" 
-                    style={{ color: '#ffffff', fontSize: 32, fontWeight: '700' }}
-                  >
-                    C
-                  </ThemedText>
-                </View>
-                <ThemedText 
-                  variant="heading" 
-                  style={{ 
-                    color: isDark ? '#f8fafc' : '#0f172a',
-                    fontSize: 28,
-                    textAlign: 'center',
-                    marginBottom: 8
-                  }}
-                >
-                  Welcome Back
-                </ThemedText>
-                <ThemedText 
-                  variant="body"
-                  style={{ 
-                    color: isDark ? '#94a3b8' : '#64748b',
-                    fontSize: 16,
-                    textAlign: 'center'
-                  }}
-                >
-                  Sign in to continue to Campusly
-                </ThemedText>
-              </Animated.View>
-
-              {/* Form Card */}
-              <Animated.View
-                entering={FadeInDown.duration(600).delay(100).springify()}
-                style={{
-                  backgroundColor: isDark ? 'rgba(30, 41, 59, 0.7)' : 'rgba(255, 255, 255, 0.85)',
-                  borderRadius: 28,
-                  padding: 24,
-                  borderWidth: 1,
-                  borderColor: isDark ? 'rgba(51, 65, 85, 0.5)' : 'rgba(226, 232, 240, 0.8)',
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 8 },
-                  shadowOpacity: isDark ? 0.4 : 0.08,
-                  shadowRadius: 24,
-                  elevation: 8,
-                }}
-              >
-                <Controller
-                  control={control}
-                  name="identifier"
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <ThemedInput
-                      label="Email or Username"
-                      placeholder="john@university.edu or john_doe"
-                      value={value}
-                      onChangeText={onChange}
-                      onBlur={onBlur}
-                      error={errors.identifier?.message}
-                      leftIcon={<Ionicons name="mail-outline" size={20} color="#64748b" />}
-                      autoCapitalize="none"
-                      keyboardType="email-address"
-                    />
-                  )}
-                />
-
-                <Controller
-                  control={control}
-                  name="password"
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <ThemedInput
-                      label="Password"
-                      placeholder="Enter your password"
-                      value={value}
-                      onChangeText={onChange}
-                      onBlur={onBlur}
-                      error={errors.password?.message}
-                      secureTextEntry={!showPassword}
-                      leftIcon={<Ionicons name="lock-closed-outline" size={20} color="#64748b" />}
-                      rightIcon={
-                        <TouchableOpacity onPress={() => setShowPassword(!showPassword)} hitSlop={8}>
-                          <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#64748b" />
-                        </TouchableOpacity>
-                      }
-                    />
-                  )}
-                />
-
-                {submitError ? (
-                  <ThemedText
-                    variant="body"
-                    style={{ color: '#ef4444', fontSize: 13, marginBottom: 8 }}
-                  >
-                    {submitError}
-                  </ThemedText>
-                ) : null}
-
-                <View style={{ marginTop: 8 }}>
-                  <GradientButton
-                    title="Sign In"
-                    onPress={handleSubmit(onSubmit)}
-                    loading={isLoading}
-                    size="lg"
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color={colors.textMuted}
                   />
-                </View>
-              </Animated.View>
+                </Pressable>
+              }
+            />
+          )}
+        />
 
-              {/* Footer */}
-              <Animated.View
-                entering={FadeInDown.duration(600).delay(200).springify()}
-                style={{ marginTop: 24, alignItems: 'center' }}
-              >
-                <TouchableOpacity 
-                  onPress={() => {
-                    haptics.light();
-                    onSwitchState('signup');
-                  }} 
-                  activeOpacity={0.7}
-                  style={{ paddingVertical: 8 }}
-                >
-                  <ThemedText 
-                    variant="body"
-                    style={{ 
-                      color: isDark ? '#94a3b8' : '#64748b',
-                      fontSize: 15,
-                      textAlign: 'center'
-                    }}
-                  >
-                    Do not have an account?{' '}
-                    <ThemedText 
-                      variant="body"
-                      style={{ color: '#4f46e5', fontWeight: '600' }}
-                    >
-                      Create one
-                    </ThemedText>
-                  </ThemedText>
-                </TouchableOpacity>
-              </Animated.View>
-            </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    </View>
+        {submitError ? <InlineAlert message={submitError} /> : null}
+
+        <View style={{ marginTop: 6 }}>
+          <GradientButton
+            title="Sign in"
+            onPress={handleSubmit(onSubmit)}
+            loading={isLoading}
+            size="lg"
+          />
+        </View>
+      </View>
+    </AuthShell>
   );
 }

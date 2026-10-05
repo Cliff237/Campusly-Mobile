@@ -10,6 +10,7 @@ import {
 import { useColorScheme } from 'nativewind';
 import { ThemedText } from './ThemedText';
 import { haptics } from '@/lib/haptics';
+import React from 'react';
 
 interface ThemedInputProps extends TextInputProps {
   label?: string;

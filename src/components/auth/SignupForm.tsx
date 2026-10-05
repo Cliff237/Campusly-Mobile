@@ -1,18 +1,17 @@
-// src/components/auth/SignupForm.tsx
 import { useState } from 'react';
-import { Alert, View, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Alert, Pressable, TouchableOpacity, View } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import Animated, { FadeIn, SlideInRight, SlideOutLeft } from 'react-native-reanimated';
+import Animated, { FadeInRight } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { ThemedText } from '@/ui/ThemedText';
-import { ThemedInput } from '@/ui/ThemedInput';
+import { AppText } from '@/ui/AppText';
 import { GradientButton } from '@/ui/GradientButton';
-import { IconButton } from '@/ui/IconButton';
+import { TextField } from '@/ui/TextField';
+import { useAppTheme } from '@/ui/useAppTheme';
+import { AuthShell } from './AuthShell';
+import { haptics } from '@/lib/haptics';
 import { api } from '@/lib/api';
-import { AnimatedBackground } from '@/ui/AnimatedBackground';
 
 const signupSchema = z.object({
   full_name: z.string().min(1, 'Full name is required'),
@@ -33,7 +32,37 @@ interface SignupFormProps {
   onComplete: (data: SignupFormValues) => void;
 }
 
+/** Hero sub-line per step (the "Step x of y" wording is the original one). */
+const STEP_HINT = ['Secure your account', 'How we reach you'] as const;
+
+/** Two-segment progress bar shown on the hero. */
+function StepBar({ step, total }: { step: number; total: number }) {
+  const { colors } = useAppTheme();
+  return (
+    <View
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel={`Step ${step} of ${total}`}
+      accessibilityValue={{ min: 1, max: total, now: step }}
+      style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}
+    >
+      {Array.from({ length: total }, (_, i) => (
+        <View
+          key={i}
+          style={{
+            flex: 1,
+            height: 5,
+            borderRadius: 3,
+            backgroundColor: i < step ? colors.heroText : 'rgba(255,255,255,0.28)',
+          }}
+        />
+      ))}
+    </View>
+  );
+}
+
 export function SignupForm({ onSwitchState, onComplete }: SignupFormProps) {
+  const { colors } = useAppTheme();
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -47,6 +76,14 @@ export function SignupForm({ onSwitchState, onComplete }: SignupFormProps) {
   } = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
     mode: 'onChange',
+    defaultValues: {
+      full_name: '',
+      username: '',
+      password: '',
+      confirmPassword: '',
+      email: '',
+      phone: '',
+    },
   });
 
   const nextStep = async () => {
@@ -92,215 +129,193 @@ export function SignupForm({ onSwitchState, onComplete }: SignupFormProps) {
   };
 
   return (
-    <View style={{ flex: 1 }}>
-      <AnimatedBackground />
-      <SafeAreaView style={{ flex: 1 }}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 1 }}
-        >
-          <ScrollView
-            contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingVertical: 32 }}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
+    <AuthShell
+      compact
+      title="Create account"
+      subtitle={`Step ${step} of ${totalSteps} · ${STEP_HINT[step - 1]}`}
+      heroExtra={<StepBar step={step} total={totalSteps} />}
+      footer={
+        <View style={{ paddingTop: 20, borderTopWidth: 1, borderTopColor: colors.border, alignItems: 'center' }}>
+          <TouchableOpacity
+            onPress={() => {
+              haptics.light();
+              onSwitchState('login');
+            }}
+            activeOpacity={0.7}
+            style={{ paddingVertical: 8 }}
           >
-            <View style={{ paddingHorizontal: 24 }}>
-          {/* Header */}
-          <View style={{ alignItems: 'center', marginBottom: 24 }}>
-            <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-              <Ionicons name="person-add-outline" size={24} color="#ffffff" />
-            </View>
-            <ThemedText variant="heading" align="center">
-              Create Account
-            </ThemedText>
-            <ThemedText variant="muted" align="center" style={{ marginTop: 4 }}>
-              Step {step} of {totalSteps}
-            </ThemedText>
-
-            {/* Progress bar */}
-            <View style={{ width: '100%', height: 6, backgroundColor: '#f1f5f9', borderRadius: 999, marginTop: 16, overflow: 'hidden' }}>
-              <Animated.View
-                entering={FadeIn.duration(400)}
-                style={{
-                  width: `${(step / totalSteps) * 100}%`,
-                  height: '100%',
-                  borderRadius: 999,
-                  backgroundColor: '#4f46e5',
-                }}
+            <AppText variant="body" tone="muted" align="center">
+              Already have an account?{' '}
+              <AppText variant="body" weight="bold" tone="brand">
+                Sign in
+              </AppText>
+            </AppText>
+          </TouchableOpacity>
+        </View>
+      }
+    >
+      {/* Form steps */}
+      {step === 1 && (
+        <Animated.View key="step1" entering={FadeInRight.duration(280)} style={{ gap: 18 }}>
+          <Controller
+            control={control}
+            name="full_name"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <TextField
+                label="Full name"
+                placeholder="John Doe"
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                error={errors.full_name?.message}
+                leftIcon="person-outline"
               />
-            </View>
-          </View>
-
-          {/* Form Steps */}
-          {step === 1 && (
-            <Animated.View
-              key="step1"
-              entering={SlideInRight.duration(300)}
-              exiting={SlideOutLeft.duration(250)}
-            >
-              <Controller
-                control={control}
-                name="full_name"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <ThemedInput
-                    label="Full Name"
-                    placeholder="John Doe"
-                    value={value}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                    error={errors.full_name?.message}
-                    leftIcon={<Ionicons name="person-outline" size={20} color="#64748b" />}
-                  />
-                )}
-              />
-
-              <Controller
-                control={control}
-                name="password"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <ThemedInput
-                    label="Password"
-                    placeholder="••••••••"
-                    value={value}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                    error={errors.password?.message}
-                    secureTextEntry={!showPassword}
-                    leftIcon={<Ionicons name="lock-closed-outline" size={20} color="#64748b" />}
-                    rightIcon={
-                      <IconButton 
-                        name={showPassword ? 'eye-off-outline' : 'eye-outline'} 
-                        onPress={() => setShowPassword(!showPassword)} 
-                      />
-                    }
-                  />
-                )}
-              />
-
-              <Controller
-                control={control}
-                name="confirmPassword"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <ThemedInput
-                    label="Confirm Password"
-                    placeholder="••••••••"
-                    value={value}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                    error={errors.confirmPassword?.message}
-                    secureTextEntry={!showPassword}
-                    leftIcon={<Ionicons name="lock-closed-outline" size={20} color="#64748b" />}
-                  />
-                )}
-              />
-            </Animated.View>
-          )}
-
-          {step === 2 && (
-            <Animated.View
-              key="step2"
-              entering={SlideInRight.duration(300)}
-              exiting={SlideOutLeft.duration(250)}
-            >
-              <Controller
-                control={control}
-                name="username"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <ThemedInput
-                    label="Username"
-                    placeholder="john_doe"
-                    value={value}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                    error={errors.username?.message}
-                    leftIcon={<Ionicons name="at-outline" size={20} color="#64748b" />}
-                    autoCapitalize="none"
-                  />
-                )}
-              />
-
-              <Controller
-                control={control}
-                name="email"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <ThemedInput
-                    label="Email"
-                    placeholder="john@university.edu"
-                    value={value}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                    error={errors.email?.message}
-                    leftIcon={<Ionicons name="mail-outline" size={20} color="#64748b" />}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                  />
-                )}
-              />
-
-              <Controller
-                control={control}
-                name="phone"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <ThemedInput
-                    label="Phone Number"
-                    placeholder="+237 6XX XXX XXX"
-                    value={value}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                    error={errors.phone?.message}
-                    leftIcon={<Ionicons name="call-outline" size={20} color="#64748b" />}
-                    keyboardType="phone-pad"
-                  />
-                )}
-              />
-            </Animated.View>
-          )}
-
-          {/* Navigation Buttons */}
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, gap: 12 }}>
-            {step > 1 ? (
-              <TouchableOpacity
-                onPress={prevStep}
-                style={{ paddingHorizontal: 16, paddingVertical: 14, backgroundColor: '#f1f5f9', borderRadius: 14 }}
-                activeOpacity={0.7}
-              >
-                <ThemedText variant="body" style={{ fontWeight: '600', color: '#475569' }}>
-                  Back
-                </ThemedText>
-              </TouchableOpacity>
-            ) : (
-              <View />
             )}
+          />
 
-            <View style={{ flex: 1 }}>
-              {step < totalSteps ? (
-                <GradientButton title="Continue" size="md" onPress={nextStep} />
-              ) : (
-                <GradientButton
-                  title={isLoading ? 'Creating...' : 'Create Account'}
-                  size="md"
-                  onPress={handleSubmit(onSubmit)}
-                  loading={isLoading}
-                />
-              )}
-            </View>
-          </View>
+          <Controller
+            control={control}
+            name="password"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <TextField
+                label="Password"
+                placeholder="••••••••"
+                hint="At least 8 characters"
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                error={errors.password?.message}
+                secureTextEntry={!showPassword}
+                leftIcon="lock-closed-outline"
+                rightSlot={
+                  <Pressable
+                    onPress={() => setShowPassword((v) => !v)}
+                    hitSlop={12}
+                    accessibilityRole="button"
+                    accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    <Ionicons
+                      name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                      size={20}
+                      color={colors.textMuted}
+                    />
+                  </Pressable>
+                }
+              />
+            )}
+          />
 
-          {/* Footer */}
-          <View style={{ marginTop: 24, alignItems: 'center' }}>
-            <TouchableOpacity onPress={() => onSwitchState('login')} activeOpacity={0.7} style={{ paddingVertical: 8 }}>
-              <ThemedText variant="muted" align="center">
-                Already have an account?{' '}
-                <ThemedText variant="body" style={{ color: '#4f46e5', fontWeight: '600' }}>
-                  Sign in
-                </ThemedText>
-              </ThemedText>
-            </TouchableOpacity>
-          </View>
-            </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    </View>
+          <Controller
+            control={control}
+            name="confirmPassword"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <TextField
+                label="Confirm password"
+                placeholder="••••••••"
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                error={errors.confirmPassword?.message}
+                secureTextEntry={!showPassword}
+                leftIcon="lock-closed-outline"
+              />
+            )}
+          />
+        </Animated.View>
+      )}
+
+      {step === 2 && (
+        <Animated.View key="step2" entering={FadeInRight.duration(280)} style={{ gap: 18 }}>
+          <Controller
+            control={control}
+            name="username"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <TextField
+                label="Username"
+                placeholder="john_doe"
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                error={errors.username?.message}
+                leftIcon="at-outline"
+                autoCapitalize="none"
+              />
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="email"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <TextField
+                label="Email"
+                placeholder="john@university.edu"
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                error={errors.email?.message}
+                leftIcon="mail-outline"
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="phone"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <TextField
+                label="Phone number"
+                placeholder="+237 6XX XXX XXX"
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                error={errors.phone?.message}
+                leftIcon="call-outline"
+                keyboardType="phone-pad"
+              />
+            )}
+          />
+        </Animated.View>
+      )}
+
+      {/* Navigation buttons */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 24 }}>
+        {step > 1 ? (
+          <TouchableOpacity
+            onPress={prevStep}
+            style={{
+              paddingHorizontal: 20,
+              minHeight: 52,
+              justifyContent: 'center',
+              alignItems: 'center',
+              backgroundColor: colors.surfaceMuted,
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: colors.border,
+            }}
+            activeOpacity={0.7}
+          >
+            <AppText variant="body" weight="semibold" tone="secondary">
+              Back
+            </AppText>
+          </TouchableOpacity>
+        ) : null}
+
+        <View style={{ flex: 1 }}>
+          {step < totalSteps ? (
+            <GradientButton title="Continue" size="md" onPress={nextStep} />
+          ) : (
+            <GradientButton
+              title="Create Account"
+              size="md"
+              onPress={handleSubmit(onSubmit)}
+              loading={isLoading}
+            />
+          )}
+        </View>
+      </View>
+    </AuthShell>
   );
 }

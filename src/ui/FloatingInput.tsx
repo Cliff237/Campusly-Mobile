@@ -1,5 +1,5 @@
 // src/ui/FloatingInput.tsx
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { View, TextInput, type TextInputProps, Pressable, StyleSheet } from 'react-native';
 import Animated, {
   useAnimatedStyle,

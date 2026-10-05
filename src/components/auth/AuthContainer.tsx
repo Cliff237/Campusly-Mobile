@@ -1,6 +1,6 @@
 // src/components/auth/AuthContainer.tsx
 import { useState } from 'react';
-import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 import { LoginForm } from './LoginForm';
 import { SignupForm } from './SignupForm';
@@ -32,8 +32,8 @@ export function AuthContainer() {
       {currentState === 'login' && (
         <Animated.View
           key="login"
-          entering={FadeInDown.duration(350)}
-          exiting={FadeOutUp.duration(250)}
+          entering={FadeIn.duration(280)}
+          exiting={FadeOut.duration(160)}
           style={{ flex: 1 }}
         >
           <LoginForm
@@ -46,8 +46,8 @@ export function AuthContainer() {
       {currentState === 'signup' && (
         <Animated.View
           key="signup"
-          entering={FadeInDown.duration(350)}
-          exiting={FadeOutUp.duration(250)}
+          entering={FadeIn.duration(280)}
+          exiting={FadeOut.duration(160)}
           style={{ flex: 1 }}
         >
           <SignupForm
@@ -60,8 +60,8 @@ export function AuthContainer() {
       {currentState === 'otp' && (
         <Animated.View
           key="otp"
-          entering={FadeInDown.duration(350)}
-          exiting={FadeOutUp.duration(250)}
+          entering={FadeIn.duration(280)}
+          exiting={FadeOut.duration(160)}
           style={{ flex: 1 }}
         >
           <OtpForm

@@ -1,51 +1,138 @@
-import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, RefreshControl, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ScrollView, RefreshControl, View, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { href } from '@/lib/href';
 import { CourseCard } from '@/components/student/courses/CourseCard';
-import { EmptyStateAnimation } from '@/ui/EmptyStateAnimation';
+import { EmptyState } from '@/ui/EmptyState';
+import { SearchField } from '@/ui/SearchField';
+import { AppText } from '@/ui/AppText';
+import { useAppTheme } from '@/ui/useAppTheme';
+import { useBottomTabOffset } from '@/ui/tabBarOptions';
 import type { StudentCourse } from '@/lib/types/student';
 import { fetchStudentDashboard } from '@/lib/api/student';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { showToast } from '@/ui/Toast';
-import { ThemedText } from '@/ui/ThemedText';
 
 export default function CoursesListScreen() {
   const router = useRouter();
+  const { colors, isDark } = useAppTheme();
   const { accessToken, currentMembership } = useAuth();
+  const bottomOffset = useBottomTabOffset(28);
+
   const [courses, setCourses] = useState<StudentCourse[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const load = useCallback(async (isRefresh = false) => {
-    if (!accessToken || !currentMembership) return;
-    setRefreshing(isRefresh);
-    try {
-      setCourses((await fetchStudentDashboard(currentMembership.institution_id, accessToken)).courses);
-    } catch (error) {
-      showToast.error('Courses', error instanceof Error ? error.message : 'Could not load courses');
-    } finally { setRefreshing(false); }
-  }, [accessToken, currentMembership]);
-  useEffect(() => { const task = setTimeout(() => void load(), 0); return () => clearTimeout(task); }, [load]);
+  const [search, setSearch] = useState('');
+
+  const load = useCallback(
+    async (isRefresh = false) => {
+      if (!accessToken || !currentMembership) return;
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
+
+      try {
+        const dashboard = await fetchStudentDashboard(currentMembership.institution_id, accessToken);
+        setCourses(dashboard.courses || []);
+      } catch (error) {
+        showToast.error('Courses', error instanceof Error ? error.message : 'Could not load courses');
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [accessToken, currentMembership]
+  );
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const filteredCourses = useMemo(() => {
+    if (!search.trim()) return courses;
+    const q = search.trim().toLowerCase();
+    return courses.filter(
+      (c) =>
+        c.course_name.toLowerCase().includes(q) ||
+        c.course_code.toLowerCase().includes(q) ||
+        (c.teacher_name && c.teacher_name.toLowerCase().includes(q))
+    );
+  }, [courses, search]);
 
   return (
     <ScrollView
-      className="flex-1 bg-bg dark:bg-bg-dark"
-      contentContainerStyle={{ paddingTop: 12, paddingBottom: 40, flexGrow: 1 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#0f766e" />}
+      style={{ flex: 1, backgroundColor: colors.background }}
+      contentContainerStyle={{ paddingTop: 14, paddingBottom: bottomOffset, flexGrow: 1 }}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => void load(true)}
+          tintColor={colors.brand}
+          colors={[colors.brand]}
+        />
+      }
     >
-      <View className="px-5 pb-3">
-        <ThemedText variant="display">Courses</ThemedText>
-        <ThemedText variant="caption" className="text-text-muted dark:text-text-muted-dark mt-1">Your class channels and learning updates</ThemedText>
+      {/* Title Header */}
+      <View style={{ paddingHorizontal: 16, marginBottom: 14 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View>
+            <AppText variant="title" weight="extrabold">
+              My Courses
+            </AppText>
+            <AppText variant="body" tone="muted" style={{ marginTop: 2 }}>
+              Class discussion channels, course materials & attendance
+            </AppText>
+          </View>
+
+          <View
+            style={{
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 14,
+              backgroundColor: colors.brandSoft,
+              borderWidth: 1,
+              borderColor: 'rgba(91, 63, 209, 0.2)',
+            }}
+          >
+            <AppText variant="caption" weight="extrabold" tone="brand">
+              {courses.length} Enrolled
+            </AppText>
+          </View>
+        </View>
       </View>
-      {courses.length === 0 ? (
-        <EmptyStateAnimation
+
+      {/* Search Field */}
+      <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
+        <SearchField
+          placeholder="Search by course code, title, or professor…"
+          value={search}
+          onChangeText={setSearch}
+        />
+      </View>
+
+      {/* Course List or Empty State */}
+      {loading && !refreshing ? (
+        <View style={{ paddingVertical: 60, alignItems: 'center' }}>
+          <ActivityIndicator color={colors.brand} size="large" />
+          <AppText variant="caption" tone="muted" style={{ marginTop: 12 }}>
+            Loading enrolled courses…
+          </AppText>
+        </View>
+      ) : filteredCourses.length === 0 ? (
+        <EmptyState
           icon="book-outline"
-          title="No enrolled courses"
-          subtitle="Your enrolled classes will appear here"
+          title={search ? 'No matching courses' : 'No enrolled courses'}
+          message={
+            search
+              ? `No courses found matching "${search}". Check your spelling or try another term.`
+              : 'You are not currently enrolled in any courses for this term.'
+          }
         />
       ) : (
-        courses.map((course) => (
+        filteredCourses.map((course) => (
           <CourseCard
-            key={course.class_id}
+            key={course.class_id || course.course_id}
             course={course}
             onPress={() => router.push(href(`/(student)/courses/${course.course_id}`))}
           />

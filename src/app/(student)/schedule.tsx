@@ -13,6 +13,7 @@ import { fetchStudentDashboard } from '@/lib/api/student';
 import { useBLE } from '@/hooks/useBLE';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { showToast } from '@/ui/Toast';
+import { useBottomTabOffset } from '@/ui/tabBarOptions';
 import type { StudentAttendanceRecord } from '@/lib/types/student';
 import type { TimelineEvent } from '@/components/student/schedule/DayTimeline';
 import type { ActiveAttendanceSession } from '@/lib/types/attendance';
@@ -47,9 +48,9 @@ export default function ScheduleScreen() {
     } finally { setRefreshing(false); }
   }, [accessToken, currentMembership]);
   useEffect(() => {
-    const task = setTimeout(() => void load(), 0);
+    const task = setTimeout(() => void load(Boolean(urlSessionId)), 0);
     return () => clearTimeout(task);
-  }, [load]);
+  }, [load, urlSessionId]);
   useEffect(() => () => { scanCleanup.current?.(); }, []);
   useEffect(() => {
     if (!activeSessions.length) return;
@@ -61,14 +62,16 @@ export default function ScheduleScreen() {
   useEffect(() => {
     if (urlSessionId && activeSessions.length > 0) {
       const session = activeSessions.find(s => s.session_id === urlSessionId);
-      if (session && !session.is_checked_in) {
-        console.log('[Schedule] Auto-opening check-in modal for session:', urlSessionId);
-        openCheckinModal(session);
+      if (session) {
+        if (!session.is_checked_in) {
+          console.log('[Schedule] Auto-opening check-in modal for session:', urlSessionId);
+          openCheckinModal(session);
+        }
         // Clear the URL param to prevent re-triggering
-        router.setParams({});
+        router.setParams({ sessionId: undefined });
       }
     }
-  }, [urlSessionId, activeSessions]);
+  }, [urlSessionId, activeSessions, router]);
   const setCheckinState = (sessionId: string, state: 'idle' | 'permission' | 'searching' | 'verifying' | 'not-found' | 'success' | 'expired' | 'error', message?: string) => {
     setCheckinStates((all) => ({ ...all, [sessionId]: { state, message } }));
   };
@@ -136,7 +139,7 @@ export default function ScheduleScreen() {
       console.log('[Schedule] Starting scanForAttendance');
       cleanup = await scanForAttendance((device) => {
         console.log('[Schedule] Device detected in scan');
-        void finish(device.rssi);
+        void finish(device.rssi ?? undefined);
       });
       scanCleanup.current = cleanup;
       
@@ -166,6 +169,8 @@ export default function ScheduleScreen() {
     await markSessionPresent(session, false);
   };
 
+  const bottomOffset = useBottomTabOffset(28);
+
   const handleManualCheckIn = async (session: ActiveAttendanceSession) => {
     console.log('[Schedule] Manual check-in requested for session:', session.session_id);
     await markSessionPresent(session, true);
@@ -180,7 +185,7 @@ export default function ScheduleScreen() {
     <>
       <ScrollView
         className="flex-1 bg-bg dark:bg-bg-dark"
-        contentContainerStyle={{ paddingTop: 16, paddingBottom: 40, flexGrow: 1 }}
+        contentContainerStyle={{ paddingTop: 16, paddingBottom: bottomOffset, flexGrow: 1 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#4f46e5" />}
       >
         <WeekSelector selected={selected} onSelect={setSelected} />

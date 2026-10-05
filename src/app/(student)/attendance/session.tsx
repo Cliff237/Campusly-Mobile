@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -9,27 +9,30 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { MotiView } from "moti";
-import { useLocalSearchParams, useRouter, useSegments } from "expo-router";
-import { ThemedText } from "@/ui/ThemedText";
-import { showToast } from "@/ui/Toast";
-import { haptics } from "@/lib/haptics";
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { MotiView } from 'moti';
+import { useLocalSearchParams, useRouter, useSegments } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { AppText } from '@/ui/AppText';
+import { BrandMark } from '@/ui/brand/BrandMark';
+import { showToast } from '@/ui/Toast';
+import { haptics } from '@/lib/haptics';
+import { useAppTheme } from '@/ui/useAppTheme';
 import {
   closeAttendanceSession,
   fetchAttendanceRoster,
   manualMarkAttendance,
-} from "@/lib/api/attendance";
-import { useAuth } from "@/lib/auth/AuthContext";
-import type { AttendanceRosterStudent } from "@/lib/types/attendance";
-import { useBLE } from "@/hooks/useBLE";
+} from '@/lib/api/attendance';
+import { useAuth } from '@/lib/auth/AuthContext';
+import type { AttendanceRosterStudent } from '@/lib/types/attendance';
+import { useBLE } from '@/hooks/useBLE';
 
 type Student = AttendanceRosterStudent & { changed?: boolean };
-const SIZE = 220,
-  DOTS = 56;
+const SIZE = 210;
+const DOTS = 48;
 
-function ProgressRing({
+function LiveBeaconTimer({
   remaining,
   total,
 }: {
@@ -37,45 +40,59 @@ function ProgressRing({
   total: number;
 }) {
   const active = Math.ceil(Math.max(0, remaining / total) * DOTS);
-  const clock = `${String(Math.floor(remaining / 60)).padStart(2, "0")}:${String(remaining % 60).padStart(2, "0")}`;
+  const minutes = Math.floor(remaining / 60);
+  const seconds = remaining % 60;
+  const clock = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  const isUrgent = remaining < 60;
+
   return (
     <View style={styles.ring}>
+      {/* Concentric radar beacon dots */}
       {Array.from({ length: DOTS }, (_, i) => {
-        const a = (i / DOTS) * Math.PI * 2 - Math.PI / 2,
-          color = i < 18 ? "#8b5cf6" : i < 40 ? "#39d7c5" : "#f58ac0";
+        const a = (i / DOTS) * Math.PI * 2 - Math.PI / 2;
+        const color = isUrgent ? '#FBBF24' : i < active ? '#34D399' : 'rgba(255, 255, 255, 0.12)';
         return (
           <MotiView
             key={i}
             animate={{
-              opacity: i < active ? 1 : 0.12,
-              scale: i < active ? 1 : 0.72,
+              opacity: i < active ? 1 : 0.15,
+              scale: i < active ? 1 : 0.7,
             }}
-            transition={{ type: "timing", duration: 420 }}
+            transition={{ type: 'timing', duration: 400 }}
             style={{
-              position: "absolute",
+              position: 'absolute',
               width: 5,
               height: 5,
-              borderRadius: 4,
+              borderRadius: 3,
               backgroundColor: color,
-              left: SIZE / 2 + Math.cos(a) * 101 - 2,
-              top: SIZE / 2 + Math.sin(a) * 101 - 2,
+              left: SIZE / 2 + Math.cos(a) * 98 - 2.5,
+              top: SIZE / 2 + Math.sin(a) * 98 - 2.5,
             }}
           />
         );
       })}
+
+      {/* Core Display Circle */}
       <View style={styles.core}>
-        <ThemedText
+        <AppText
           variant="display"
-          style={{ color: remaining < 60 ? "#f9c878" : "#fff", fontSize: 43 }}
+          weight="extrabold"
+          style={{
+            color: isUrgent ? '#FBBF24' : '#FFFFFF',
+            fontSize: 40,
+            lineHeight: 46,
+            letterSpacing: -0.5,
+          }}
         >
           {clock}
-        </ThemedText>
-        <ThemedText
-          variant="tiny"
-          style={{ color: "#b9b3ca", letterSpacing: 1 }}
+        </AppText>
+        <AppText
+          variant="caption"
+          weight="extrabold"
+          style={{ color: '#D1C6FF', letterSpacing: 1.2, marginTop: 2, fontSize: 10 }}
         >
-          TIME REMAINING
-        </ThemedText>
+          SESSION REMAINING
+        </AppText>
       </View>
     </View>
   );
@@ -84,8 +101,10 @@ function ProgressRing({
 export default function LiveAttendanceScreen() {
   const router = useRouter();
   const segments = useSegments();
+  const { colors } = useAppTheme();
   const { accessToken } = useAuth();
   const { stopBeacon } = useBLE();
+
   const p = useLocalSearchParams<{
     sessionId: string;
     classId: string;
@@ -95,95 +114,78 @@ export default function LiveAttendanceScreen() {
     courseName: string;
     manual: string;
   }>();
+
   const total = Math.max(1, Number(p.duration) || 10) * 60;
-  const [remaining, setRemaining] = useState(total),
-    [roster, setRoster] = useState<Student[]>([]),
-    [loading, setLoading] = useState(true),
-    [query, setQuery] = useState(""),
-    [closing, setClosing] = useState(false);
-  const isPollingRef = useRef(false);
+  const [remaining, setRemaining] = useState(total);
+  const [roster, setRoster] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState('');
+  const [closing, setClosing] = useState(false);
+
   const name = useMemo(() => {
     try {
-      return decodeURIComponent(p.courseName || "Course");
+      return decodeURIComponent(p.courseName || 'Course');
     } catch {
-      return p.courseName || "Course";
+      return p.courseName || 'Course';
     }
   }, [p.courseName]);
-  const load = useCallback(async (isInitialLoad = false) => {
-    if (!accessToken || !p.classId) return;
-    if (isInitialLoad) setLoading(true);
-    try {
-      console.log("[Attendance] Loading live roster", {
-        sessionId: p.sessionId,
-        classId: p.classId,
-        isInitialLoad,
-      });
-      setRoster(await fetchAttendanceRoster(p.classId, accessToken, p.sessionId));
-    } catch (e) {
-      console.error("[Attendance] Roster load failed", e);
-      if (isInitialLoad) {
-        showToast.error(
-          "Roster unavailable",
-          e instanceof Error ? e.message : "Could not load class roster",
-        );
+
+  const load = useCallback(
+    async (isInitialLoad = false) => {
+      if (!accessToken || !p.classId) return;
+      if (isInitialLoad) setLoading(true);
+      try {
+        const data = await fetchAttendanceRoster(p.classId, accessToken, p.sessionId);
+        setRoster(data);
+      } catch (e) {
+        console.error('[Attendance] Roster load failed', e);
+        if (isInitialLoad) {
+          showToast.error('Roster unavailable', e instanceof Error ? e.message : 'Could not load class roster');
+        }
+      } finally {
+        if (isInitialLoad) setLoading(false);
       }
-    } finally {
-      if (isInitialLoad) setLoading(false);
-    }
-  }, [accessToken, p.classId, p.sessionId]);
+    },
+    [accessToken, p.classId, p.sessionId],
+  );
+
   useEffect(() => {
     void load(true);
   }, [load]);
 
-  // Poll for roster updates every 3 seconds (background refresh without loading spinner)
+  // Background polling for real-time check-in updates
   useEffect(() => {
     if (!accessToken || !p.classId || closing) return;
-    
     const interval = setInterval(() => {
-      void load(false); // Don't show loading spinner during polling
+      void load(false);
     }, 3000);
-
     return () => clearInterval(interval);
   }, [accessToken, p.classId, closing, load]);
-  useEffect(() => () => { void stopBeacon(); }, [stopBeacon]);
-  const present = roster.filter((s) => s.status === "present").length,
-    shown = roster.filter((s) =>
-      s.full_name.toLowerCase().includes(query.trim().toLowerCase()),
-    );
+
+  useEffect(() => () => {
+    void stopBeacon();
+  }, [stopBeacon]);
+
+  const present = roster.filter((s) => s.status === 'present').length;
+  const shown = roster.filter((s) => s.full_name.toLowerCase().includes(query.trim().toLowerCase()));
+
   const mark = async (student: Student) => {
-    if (!accessToken || p.manual !== "true") return;
-    const status = student.status === "present" ? "absent" : "present";
+    if (!accessToken || p.manual !== 'true') return;
+    const status = student.status === 'present' ? 'absent' : 'present';
     setRoster((all) =>
-      all.map((s) =>
-        s.membership_id === student.membership_id
-          ? { ...s, status, changed: true }
-          : s,
-      ),
+      all.map((s) => (s.membership_id === student.membership_id ? { ...s, status, changed: true } : s)),
     );
     try {
-      console.log("[Attendance] Manual mark", {
-        sessionId: p.sessionId,
-        studentId: student.membership_id,
-        status,
-      });
-      await manualMarkAttendance(
-        p.sessionId,
-        student.membership_id,
-        status,
-        accessToken,
-      );
+      await manualMarkAttendance(p.sessionId, student.membership_id, status, accessToken);
       haptics.selection();
-      // Reload roster without loading spinner
       void load(false);
     } catch (e) {
-      console.error("[Attendance] Manual mark failed", e);
-      showToast.error(
-        "Mark was not saved",
-        e instanceof Error ? e.message : "Try again",
-      );
+      console.error('[Attendance] Manual mark failed', e);
+      showToast.error('Mark was not saved', e instanceof Error ? e.message : 'Try again');
       void load(true);
     }
   };
+
   const finish = async () => {
     if (!accessToken || !p.sessionId || closing) return;
     setClosing(true);
@@ -191,308 +193,353 @@ export default function LiveAttendanceScreen() {
       try {
         await stopBeacon();
       } catch (error) {
-        console.warn("[Attendance] Beacon cleanup failed", error);
+        console.warn('[Attendance] Beacon cleanup failed', error);
       }
       const result = await closeAttendanceSession(p.sessionId, accessToken);
       haptics.success();
-      showToast.success(
-        "Attendance completed",
-        `${result.total_present} present · ${result.total_absent} absent`,
-      );
-      const coursePath = segments[0] === "teacher"
-        ? `/teacher/courses/${p.courseId}?name=${encodeURIComponent(name)}&classId=${p.classId}`
-        : `/(student)/courses/${p.courseId}`;
+      showToast.success('Attendance completed', `${result.total_present} present · ${result.total_absent} absent`);
+      const coursePath =
+        segments[0] === 'teacher'
+          ? `/teacher/courses/${p.courseId}?name=${encodeURIComponent(name)}&classId=${p.classId}`
+          : `/(student)/courses/${p.courseId}`;
       router.replace(coursePath as never);
     } catch (e) {
-      console.error("[Attendance] Close failed", e);
-      showToast.error(
-        "Session is still live",
-        e instanceof Error ? e.message : "Try again",
-      );
+      console.error('[Attendance] Close failed', e);
+      showToast.error('Session is still live', e instanceof Error ? e.message : 'Try again');
     } finally {
       setClosing(false);
     }
   };
+
   useEffect(() => {
     const id = setInterval(() => setRemaining((value) => Math.max(0, value - 1)), 1000);
     return () => clearInterval(id);
   }, []);
+
   useEffect(() => {
     if (remaining === 0 && !closing) void finish();
   }, [remaining, closing]);
+
+  const progressPercentage = roster.length > 0 ? Math.round((present / roster.length) * 100) : 0;
+
   return (
     <View style={styles.screen}>
+      {/* Decorative ambient gradient blobs */}
       <MotiView
-        from={{ translateX: -25, opacity: 0.2 }}
-        animate={{ translateX: 30, opacity: 0.38 }}
-        transition={{
-          type: "timing",
-          duration: 7000,
-          loop: true,
-          repeatReverse: true,
-        }}
-        style={[
-          styles.blob,
-          { backgroundColor: "#7147e8", top: -85, left: -75 },
-        ]}
+        from={{ translateX: -20, opacity: 0.15 }}
+        animate={{ translateX: 25, opacity: 0.28 }}
+        transition={{ type: 'timing', duration: 7000, loop: true, repeatReverse: true }}
+        style={[styles.blob, { backgroundColor: '#5B3FD1', top: -70, left: -60 }]}
       />
       <MotiView
-        from={{ translateY: -20, opacity: 0.12 }}
-        animate={{ translateY: 20, opacity: 0.28 }}
-        transition={{
-          type: "timing",
-          duration: 8200,
-          loop: true,
-          repeatReverse: true,
-        }}
-        style={[
-          styles.blob,
-          { backgroundColor: "#18bfb1", top: 160, right: -95 },
-        ]}
+        from={{ translateY: -15, opacity: 0.1 }}
+        animate={{ translateY: 20, opacity: 0.22 }}
+        transition={{ type: 'timing', duration: 8000, loop: true, repeatReverse: true }}
+        style={[styles.blob, { backgroundColor: '#0F7A56', top: 140, right: -80 }]}
       />
-      <MotiView
-        from={{ translateY: 25, opacity: 0.12 }}
-        animate={{ translateY: -15, opacity: 0.25 }}
-        transition={{
-          type: "timing",
-          duration: 9000,
-          loop: true,
-          repeatReverse: true,
-        }}
-        style={[
-          styles.blob,
-          { backgroundColor: "#e45d9d", bottom: -135, left: 70 },
-        ]}
-      />
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingBottom: 42 }}>
-        <View className="flex-row items-center justify-between">
-          <View>
-            <View className="flex-row items-center">
-              <MotiView
-                from={{ opacity: 0.3, scale: 0.75 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{
-                  type: "timing",
-                  duration: 900,
-                  loop: true,
-                  repeatReverse: true,
-                }}
-                className="w-2 h-2 rounded-full bg-emerald-300 mr-2"
-              />
-              <ThemedText
-                variant="tiny"
-                style={{
-                  color: "#cfc7e8",
-                  fontWeight: "800",
-                  letterSpacing: 1.3,
-                }}
-              >
-                LIVE ATTENDANCE
-              </ThemedText>
-            </View>
-            <ThemedText
-              variant="subheading"
-              style={{ color: "#fff", marginTop: 5 }}
-            >
-              {name}
-            </ThemedText>
-          </View>
-          <TouchableOpacity
-            disabled={closing}
-            onPress={() =>
-              Alert.alert(
-                "End live attendance?",
-                "Students not marked present will be absent when this closes.",
-                [
-                  { text: "Keep open", style: "cancel" },
-                  {
-                    text: "End session",
-                    style: "destructive",
-                    onPress: () => void finish(),
-                  },
-                ],
-              )
-            }
-            style={styles.end}
-          >
-            <ThemedText
-              variant="caption"
-              style={{ color: "#fff", fontWeight: "700" }}
-            >
-              {closing ? "Ending…" : "End"}
-            </ThemedText>
-          </TouchableOpacity>
-        </View>
-        <View style={{ alignItems: "center", paddingVertical: 29 }}>
-          <MotiView
-            from={{ scale: 0.82, opacity: 0.35 }}
-            animate={{ scale: 1.25, opacity: 0 }}
-            transition={{ type: "timing", duration: 3000, loop: true }}
-            style={styles.pulse}
-          />
-          <ProgressRing remaining={remaining} total={total} />
-          <View style={styles.listening}>
-            <Ionicons name="radio-outline" size={17} color="#fff" />
-            <ThemedText
-              variant="caption"
-              style={{ color: "#fff", fontWeight: "700", marginLeft: 8 }}
-            >
-              Listening for nearby students
-            </ThemedText>
-          </View>
-        </View>
-        <View style={styles.card}>
-          <View className="flex-row items-end justify-between">
-            <View>
-              <ThemedText variant="subheading">Live roster</ThemedText>
-              <ThemedText variant="tiny" className="text-text-muted mt-1">
-                Code {p.code} ·{" "}
-                {p.manual === "true"
-                  ? "Tap to manually mark"
-                  : "Automatic check-in"}
-              </ThemedText>
-            </View>
-            <View className="items-end">
-              <ThemedText variant="heading" className="text-primary">
-                {present}/{roster.length}
-              </ThemedText>
-              <ThemedText variant="tiny">checked in</ThemedText>
-            </View>
-          </View>
-          <View className="mt-4 flex-row items-center rounded-2xl bg-surface-hover px-3">
-            <Ionicons name="search-outline" size={18} color="#716d80" />
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Search a student"
-              placeholderTextColor="#716d80"
-              className="flex-1 px-2 py-3 text-text"
-            />
-          </View>
-          {loading ? (
-            <View className="py-10 items-center">
-              <ActivityIndicator color="#5b3fd1" />
-              <ThemedText variant="tiny" className="mt-3">
-                Loading enrolled students…
-              </ThemedText>
-            </View>
-          ) : (
-            shown.map((s, i) => {
-              const here = s.status === "present";
-              return (
-                <MotiView
-                  key={s.membership_id}
-                  from={{ opacity: 0, translateX: -18 }}
-                  animate={{ opacity: 1, translateX: 0 }}
-                  transition={{
-                    type: "timing",
-                    duration: 280,
-                    delay: Math.min(i, 8) * 55,
-                  }}
-                >
-                  <TouchableOpacity
-                    disabled={p.manual !== "true"}
-                    onPress={() => void mark(s)}
-                    className="py-3.5 flex-row items-center border-b border-border"
-                  >
-                    <View
-                      className={`w-10 h-10 rounded-full items-center justify-center mr-3 ${here ? "bg-success-soft" : "bg-surface-hover"}`}
-                    >
-                      <Ionicons
-                        name={here ? "checkmark" : "person-outline"}
-                        size={20}
-                        color={here ? "#23815f" : "#716d80"}
-                      />
-                    </View>
-                    <View className="flex-1">
-                      <ThemedText variant="caption" className="font-semibold">
-                        {s.full_name}
-                      </ThemedText>
-                      <ThemedText
-                        variant="tiny"
-                        className={here ? "text-success" : "text-text-muted"}
-                      >
-                        {here ? "Checked in just now" : "Waiting for check-in"}
-                      </ThemedText>
-                    </View>
-                    {p.manual === "true" ? (
-                      <Ionicons
-                        name={here ? "checkmark-circle" : "add-circle-outline"}
-                        size={23}
-                        color={here ? "#23815f" : "#716d80"}
-                      />
-                    ) : null}
-                  </TouchableOpacity>
-                </MotiView>
-              );
-            })
-          )}
-        </View>
-        <ThemedText
-          variant="tiny"
-          align="center"
-          style={{ color: "#b9b3ca", marginTop: 17 }}
+
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
+          showsVerticalScrollIndicator={false}
         >
-          Session settings are locked while attendance is live.
-        </ThemedText>
-      </ScrollView>
+          {/* Top Session Bar with Campusly Brand Logo */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <BrandMark size={38} variant="glass" />
+              <View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <MotiView
+                    from={{ opacity: 0.4, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1.1 }}
+                    transition={{ type: 'timing', duration: 800, loop: true, repeatReverse: true }}
+                    style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#34D399' }}
+                  />
+                  <AppText variant="overline" weight="extrabold" style={{ color: '#34D399', letterSpacing: 1.2 }}>
+                    LIVE BEACON
+                  </AppText>
+                </View>
+                <AppText variant="subheading" weight="bold" style={{ color: '#FFFFFF', marginTop: 2 }}>
+                  {name}
+                </AppText>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              disabled={closing}
+              onPress={() =>
+                Alert.alert(
+                  'End live attendance?',
+                  'Students not marked present will be marked absent when this session closes.',
+                  [
+                    { text: 'Keep Session Open', style: 'cancel' },
+                    { text: 'End Session', style: 'destructive', onPress: () => void finish() },
+                  ],
+                )
+              }
+              style={styles.end}
+            >
+              <AppText variant="caption" weight="bold" style={{ color: '#FFFFFF' }}>
+                {closing ? 'Ending…' : 'End Session'}
+              </AppText>
+            </TouchableOpacity>
+          </View>
+
+          {/* Central Beacon Animation & Countdown Timer */}
+          <View style={{ alignItems: 'center', paddingVertical: 14 }}>
+            <MotiView
+              from={{ scale: 0.85, opacity: 0.3 }}
+              animate={{ scale: 1.35, opacity: 0 }}
+              transition={{ type: 'timing', duration: 2600, loop: true }}
+              style={styles.pulse}
+            />
+            <MotiView
+              from={{ scale: 0.7, opacity: 0.2 }}
+              animate={{ scale: 1.6, opacity: 0 }}
+              transition={{ type: 'timing', duration: 3200, loop: true, delay: 600 }}
+              style={styles.pulse}
+            />
+
+            <LiveBeaconTimer remaining={remaining} total={total} />
+
+            {/* Session Code & Radar Status Bar */}
+            <View style={styles.listening}>
+              <Ionicons name="radio" size={17} color="#34D399" />
+              <AppText variant="caption" weight="extrabold" style={{ color: '#FFFFFF', marginLeft: 8 }}>
+                BROADCASTING CODE: {p.code}
+              </AppText>
+            </View>
+          </View>
+
+          {/* Live Roster Card */}
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <View>
+                <AppText variant="subheading" weight="bold">
+                  Class Roster
+                </AppText>
+                <AppText variant="caption" tone="muted" style={{ marginTop: 2 }}>
+                  {p.manual === 'true' ? 'Tap student to manually override' : 'Automatic BLE check-in active'}
+                </AppText>
+              </View>
+
+              <View style={{ alignItems: 'flex-end' }}>
+                <AppText variant="heading" weight="extrabold" tone="brand">
+                  {present}/{roster.length}
+                </AppText>
+                <AppText variant="caption" tone="muted">
+                  {progressPercentage}% present
+                </AppText>
+              </View>
+            </View>
+
+            {/* Progress Bar */}
+            <View
+              style={{
+                height: 6,
+                backgroundColor: colors.surfaceMuted,
+                borderRadius: 3,
+                marginTop: 12,
+                overflow: 'hidden',
+              }}
+            >
+              <View
+                style={{
+                  width: `${progressPercentage}%`,
+                  height: '100%',
+                  backgroundColor: colors.success,
+                  borderRadius: 3,
+                }}
+              />
+            </View>
+
+            {/* Search Input */}
+            <View
+              style={{
+                marginTop: 16,
+                flexDirection: 'row',
+                alignItems: 'center',
+                borderRadius: 16,
+                backgroundColor: colors.field,
+                paddingHorizontal: 12,
+                borderWidth: 1,
+                borderColor: colors.border,
+              }}
+            >
+              <Ionicons name="search-outline" size={18} color={colors.textMuted} />
+              <TextInput
+                value={query}
+                onChangeText={setQuery}
+                placeholder="Search enrolled students..."
+                placeholderTextColor={colors.textSubtle}
+                style={{
+                  flex: 1,
+                  paddingHorizontal: 10,
+                  paddingVertical: 10,
+                  color: colors.text,
+                  fontSize: 14,
+                }}
+              />
+              {query ? (
+                <TouchableOpacity onPress={() => setQuery('')}>
+                  <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            {/* Student List */}
+            {loading ? (
+              <View style={{ paddingVertical: 32, alignItems: 'center' }}>
+                <ActivityIndicator color={colors.brand} />
+                <AppText variant="caption" tone="muted" style={{ marginTop: 8 }}>
+                  Loading enrolled students…
+                </AppText>
+              </View>
+            ) : shown.length === 0 ? (
+              <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+                <AppText variant="caption" tone="muted">
+                  No students found matching "{query}"
+                </AppText>
+              </View>
+            ) : (
+              shown.map((s, i) => {
+                const here = s.status === 'present';
+                return (
+                  <MotiView
+                    key={s.membership_id}
+                    from={{ opacity: 0, translateY: 10 }}
+                    animate={{ opacity: 1, translateY: 0 }}
+                    transition={{ type: 'timing', duration: 250, delay: Math.min(i, 10) * 35 }}
+                  >
+                    <TouchableOpacity
+                      disabled={p.manual !== 'true'}
+                      onPress={() => void mark(s)}
+                      style={{
+                        paddingVertical: 12,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        borderBottomWidth: 1,
+                        borderBottomColor: colors.border,
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 42,
+                          height: 42,
+                          borderRadius: 21,
+                          backgroundColor: here ? colors.successSoft : colors.surfaceMuted,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginRight: 12,
+                          borderWidth: 1,
+                          borderColor: here ? colors.success : colors.border,
+                        }}
+                      >
+                        <Ionicons
+                          name={here ? 'checkmark' : 'person-outline'}
+                          size={19}
+                          color={here ? colors.success : colors.textMuted}
+                        />
+                      </View>
+
+                      <View style={{ flex: 1 }}>
+                        <AppText variant="label" weight="semibold">
+                          {s.full_name}
+                        </AppText>
+                        <AppText
+                          variant="caption"
+                          style={{ color: here ? colors.success : colors.textMuted, marginTop: 1 }}
+                        >
+                          {here ? 'Verified Present' : 'Awaiting Check-in'}
+                        </AppText>
+                      </View>
+
+                      {p.manual === 'true' ? (
+                        <View
+                          style={{
+                            paddingHorizontal: 10,
+                            paddingVertical: 6,
+                            borderRadius: 12,
+                            backgroundColor: here ? colors.successSoft : colors.surfaceMuted,
+                            borderWidth: 1,
+                            borderColor: here ? colors.success : colors.border,
+                          }}
+                        >
+                          <AppText
+                            variant="caption"
+                            weight="bold"
+                            style={{ color: here ? colors.success : colors.text }}
+                          >
+                            {here ? 'Present' : 'Tap to mark'}
+                          </AppText>
+                        </View>
+                      ) : null}
+                    </TouchableOpacity>
+                  </MotiView>
+                );
+              })
+            )}
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </View>
   );
 }
+
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#0d0b16", overflow: "hidden" },
-  blob: { position: "absolute", width: 240, height: 240, borderRadius: 999 },
+  screen: { flex: 1, backgroundColor: '#0E0B1C', overflow: 'hidden' },
+  blob: { position: 'absolute', width: 260, height: 260, borderRadius: 130 },
   ring: {
     width: SIZE,
     height: SIZE,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   core: {
-    width: 174,
-    height: 174,
-    borderRadius: 87,
-    backgroundColor: "rgba(17,14,28,.94)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,.1)",
-    alignItems: "center",
-    justifyContent: "center",
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: 'rgba(23, 18, 41, 0.94)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   end: {
-    backgroundColor: "rgba(255,255,255,.13)",
+    backgroundColor: 'rgba(200, 52, 79, 0.25)',
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,.14)",
-    borderRadius: 14,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
+    borderColor: 'rgba(200, 52, 79, 0.5)',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
   },
   pulse: {
-    position: "absolute",
+    position: 'absolute',
     width: 200,
     height: 200,
     borderRadius: 100,
-    backgroundColor: "#7654e6",
+    backgroundColor: '#5B3FD1',
+    top: 5,
   },
   listening: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     marginTop: 20,
-    paddingHorizontal: 15,
-    paddingVertical: 11,
-    borderRadius: 99,
-    backgroundColor: "rgba(104,70,220,.72)",
+    paddingHorizontal: 18,
+    paddingVertical: 9,
+    borderRadius: 20,
+    backgroundColor: 'rgba(91, 63, 209, 0.45)',
     borderWidth: 1,
-    borderColor: "rgba(196,180,255,.35)",
+    borderColor: 'rgba(167, 139, 250, 0.4)',
   },
   card: {
-    borderRadius: 28,
-    backgroundColor: "#fbfaff",
+    borderRadius: 26,
     padding: 20,
-    shadowColor: "#000",
-    shadowOpacity: 0.24,
-    shadowRadius: 18,
-    elevation: 7,
+    marginTop: 18,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
   },
 });

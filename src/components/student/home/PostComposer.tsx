@@ -385,7 +385,7 @@ export function PostComposer({
           </View>
         </LinearGradient>
 
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 48, gap: 14 }} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: Math.max(insets.bottom, 16) + 40, gap: 14 }} keyboardShouldPersistTaps="handled">
           <View>
             <ThemedText variant="caption" style={{ color: muted, fontWeight: '800', letterSpacing: 0.8, marginBottom: 9 }}>CHOOSE A FORMAT</ThemedText>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>

@@ -1,6 +1,7 @@
 // src/ui/ThemedText.tsx
 import { Text, type TextProps, StyleSheet } from 'react-native';
 import { useColorScheme } from 'nativewind';
+import React from 'react';
 
 type TextVariant = 'display' | 'heading' | 'subheading' | 'body' | 'caption' | 'muted' | 'tiny';
 
