@@ -29,6 +29,7 @@ export interface User {
   language_preference?: 'en' | 'fr';
   theme_preference?: 'light' | 'dark';
   profile_image_url?: string | null;
+  active_memberships_count?: number;
 }
 
 interface AuthContextValue {
@@ -83,14 +84,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [selectedMembershipId, setSelectedMembershipId] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
 
-  const loadMemberships = useCallback(async (token: string) => {
+  const loadMemberships = useCallback(async (token: string): Promise<Membership[]> => {
     setMembershipsLoading(true);
     try {
       const data = await fetchMyMemberships(token);
       setMemberships(data);
+      return data;
     } catch (err) {
       console.error('Failed to load memberships:', err);
       setMemberships([]);
+      return [];
     } finally {
       setMembershipsLoading(false);
     }
@@ -247,15 +250,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const newAccessToken = data.access_token;
     const newRefreshToken = data.refresh_token;
 
-    setUser(newUser);
     setAccessToken(newAccessToken);
     setRefreshToken(newRefreshToken);
 
     await authStorage.setItem(TOKEN_KEY, newAccessToken);
     await authStorage.setItem(REFRESH_TOKEN_KEY, newRefreshToken);
-    await authStorage.setItem(USER_KEY, JSON.stringify(newUser));
 
-    await loadMemberships(newAccessToken);
+    const loadedMemberships = await loadMemberships(newAccessToken);
+    const finalUser: User = {
+      ...newUser,
+      active_memberships_count: loadedMemberships.filter((m) => m.status === 'active').length,
+    };
+    setUser(finalUser);
+    await authStorage.setItem(USER_KEY, JSON.stringify(finalUser));
 
     // 1. Request notification permission and register push token
     try {
@@ -284,7 +291,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.warn('[Auth] Bluetooth permissions request failed on login:', error);
     }
 
-    return newUser;
+    return finalUser;
   };
 
   const updateProfile = async (data: Record<string, unknown>): Promise<User> => {
@@ -304,11 +311,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSelectedInstitutionId(null);
     setSelectedMembershipId(null);
 
-    await authStorage.deleteItem(TOKEN_KEY);
-    await authStorage.deleteItem(REFRESH_TOKEN_KEY);
-    await authStorage.deleteItem(USER_KEY);
-    await AsyncStorage.removeItem(INSTITUTION_KEY);
-    await AsyncStorage.removeItem(MEMBERSHIP_KEY);
+    await Promise.all([
+      authStorage.deleteItem(TOKEN_KEY),
+      authStorage.deleteItem(REFRESH_TOKEN_KEY),
+      authStorage.deleteItem(USER_KEY),
+      AsyncStorage.removeItem(INSTITUTION_KEY),
+      AsyncStorage.removeItem(MEMBERSHIP_KEY),
+    ]);
+
+    try {
+      router.replace('/(auth)');
+    } catch (e) {
+      console.warn('[Auth] Navigation on logout:', e);
+    }
   };
 
   // 5. Refresh Memberships (e.g., after OTP redemption)
@@ -362,7 +377,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       case 'staff': return '/(tabs)/staff';
       case 'school_admin': return '/(tabs)/admin';
       case 'student': return '/(student)/home';
-      case 'guardian': return '/(tabs)/guardian';
+      case 'guardian': return '/(guardian)/home';
       default: return '/(tabs)/discover';
     }
   };

@@ -1,14 +1,16 @@
 import { useCallback } from 'react';
-import { Tabs, useFocusEffect, useRouter, useSegments } from 'expo-router';
+import { Redirect, Tabs, useFocusEffect, useRouter, useSegments } from 'expo-router';
 import { BackHandler } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TeacherTopNav } from '@/components/teacher/TeacherTopNav';
+import { useAuth } from '@/lib/auth/AuthContext';
 import { useAppTheme } from '@/ui/useAppTheme';
 import { tabIcon, useTabBarOptions } from '@/ui/tabBarOptions';
 import { haptics } from '@/lib/haptics';
 
 /** Teacher routes have their own capability-aware top and bottom navigation. */
 export default function TeacherLayout() {
+  const { isAuthenticated, isReady } = useAuth();
   const router = useRouter();
   const segments = useSegments();
   const { colors } = useAppTheme();
@@ -25,6 +27,10 @@ export default function TeacherLayout() {
     });
     return () => subscription.remove();
   }, [isTeacherHome, router]));
+
+  if (isReady && !isAuthenticated) {
+    return <Redirect href="/(auth)" />;
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>

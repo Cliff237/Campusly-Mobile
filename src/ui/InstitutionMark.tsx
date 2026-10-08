@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, View } from 'react-native';
@@ -5,6 +6,10 @@ import { AppText } from './AppText';
 import { mix, readableOn, safeColor } from './color';
 import { palette } from './tokens';
 import { useAppTheme } from './useAppTheme';
+import { resolveMediaUrl } from '@/lib/media';
+
+// Local bundled asset fallback for IAI
+const IAI_LOCAL_LOGO = require('../../assets/images/iai-logo.png');
 
 export interface InstitutionMarkProps {
   name: string;
@@ -34,8 +39,12 @@ export function institutionInitials(name: string): string {
 export function InstitutionMark({ name, color, logoUrl, size = 56, radius: corner }: InstitutionMarkProps) {
   const { colors } = useAppTheme();
   const r = corner ?? Math.round(size * 0.32);
+  const [imgError, setImgError] = useState(false);
 
-  if (logoUrl) {
+  const resolved = resolveMediaUrl(logoUrl);
+  const isIai = name?.toLowerCase().includes('iai');
+
+  if (resolved && !imgError) {
     return (
       <View
         style={{
@@ -49,7 +58,31 @@ export function InstitutionMark({ name, color, logoUrl, size = 56, radius: corne
         }}
       >
         <Image
-          source={{ uri: logoUrl }}
+          source={{ uri: resolved }}
+          style={{ width: '100%', height: '100%' }}
+          contentFit="cover"
+          accessibilityLabel={`${name} logo`}
+          onError={() => setImgError(true)}
+        />
+      </View>
+    );
+  }
+
+  if (isIai) {
+    return (
+      <View
+        style={{
+          width: size,
+          height: size,
+          borderRadius: r,
+          overflow: 'hidden',
+          backgroundColor: colors.surface,
+          borderWidth: 1,
+          borderColor: colors.border,
+        }}
+      >
+        <Image
+          source={IAI_LOCAL_LOGO}
           style={{ width: '100%', height: '100%' }}
           contentFit="cover"
           accessibilityLabel={`${name} logo`}

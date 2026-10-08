@@ -57,6 +57,9 @@ export function LoginForm({ onSwitchState, onLoginUnverified }: LoginFormProps) 
       if (user.is_platform_admin) {
         console.log('[Auth][Login] navigating to admin');
         router.replace('/admin' as any);
+      } else if (user.active_memberships_count === 0) {
+        console.log('[Auth][Login] navigating to explorer (no active memberships)');
+        router.replace('/explorer/home' as any);
       } else {
         console.log('[Auth][Login] navigating to discover', { isPlatformAdmin: user.is_platform_admin });
         router.replace('/(tabs)/discover' as any);

@@ -10,15 +10,18 @@ import { haptics } from '@/lib/haptics';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { initialsFromName } from '@/lib/format';
 
+import { InstitutionMark } from '@/ui/InstitutionMark';
+
 interface TopNavProps {
   unreadCount?: number;
 }
 
 export function TopNav({ unreadCount = 0 }: TopNavProps) {
   const router = useRouter();
-  const { user } = useAuth();
+  const { currentMembership, selectedInstitutionId } = useAuth();
   const { colors } = useAppTheme();
-  const initials = initialsFromName(user?.full_name || 'Campusly');
+  const institutionId = currentMembership?.institution_id || selectedInstitutionId;
+  const institutionName = currentMembership?.institution_name || 'Institution';
 
   return (
     <View
@@ -80,38 +83,36 @@ export function TopNav({ unreadCount = 0 }: TopNavProps) {
           ) : null}
         </TouchableOpacity>
 
+        {/* Selected Institution Profile Button */}
         <TouchableOpacity
           accessibilityRole="button"
-          accessibilityLabel="Profile"
+          accessibilityLabel={`${institutionName} Profile`}
           onPress={() => {
             haptics.light();
-            router.push(href('/(tabs)/profile'));
+            if (institutionId) {
+              router.push(href(`/institution/${institutionId}`));
+            }
           }}
-          activeOpacity={0.7}
+          activeOpacity={0.75}
           style={{
             width: 40,
             height: 40,
             borderRadius: 20,
-            backgroundColor: colors.brandSoft,
+            backgroundColor: colors.surfaceMuted,
             alignItems: 'center',
             justifyContent: 'center',
             borderWidth: 1.5,
-            borderColor: colors.brand,
+            borderColor: currentMembership?.institution_brand_color || colors.brand,
             overflow: 'hidden',
           }}
         >
-          {user?.profile_image_url ? (
-            <Image
-              source={{ uri: user.profile_image_url }}
-              style={{ width: '100%', height: '100%' }}
-              contentFit="cover"
-              accessibilityLabel={`${user.full_name || 'User'} profile photo`}
-            />
-          ) : (
-            <AppText variant="label" weight="bold" tone="brand">
-              {initials}
-            </AppText>
-          )}
+          <InstitutionMark
+            name={institutionName}
+            logoUrl={currentMembership?.institution_logo_url}
+            color={currentMembership?.institution_brand_color}
+            size={37}
+            radius={18.5}
+          />
         </TouchableOpacity>
       </View>
     </View>

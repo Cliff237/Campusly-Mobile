@@ -1,5 +1,4 @@
-// src/components/explorer/ExplorerFeed.tsx
-import { View, FlatList, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { ThemedText } from '@/ui/ThemedText';
 import { PostCard } from './PostCard';
@@ -41,15 +40,11 @@ export function ExplorerFeed({ posts, loading, onReact }: ExplorerFeedProps) {
   return (
     <View className="px-5 py-6">
       <ThemedText variant="subheading" className="text-text dark:text-text-dark mb-4">Feed</ThemedText>
-      <FlatList
-        data={posts}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <PostCard post={item} onReact={() => onReact(item.id)} />
-        )}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 }} // Space for sticky CTA
-      />
+      <View style={{ gap: 14, paddingBottom: 100 }}>
+        {posts.map((item) => (
+          <PostCard key={item.id} post={item} onReact={() => onReact(item.id)} />
+        ))}
+      </View>
     </View>
   );
 }

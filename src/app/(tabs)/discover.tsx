@@ -103,7 +103,9 @@ export default function DiscoverScreen() {
       const data = await fetchInstitutionDirectory(filters, accessToken || undefined);
       setInstitutions(data);
     } catch (err: any) {
-      showToast.error('Error', err.message || 'Failed to load institutions');
+      if (!/unauthorized|401/i.test(err?.message || '')) {
+        showToast.error('Error', err.message || 'Failed to load institutions');
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -114,11 +116,17 @@ export default function DiscoverScreen() {
 
   const openMembershipDashboard = useCallback(async (membership: Membership) => {
     if (user?.is_platform_admin) {
-      router.push(`/explorer/institution/${membership.institution_id}` as any);
+      router.push({
+        pathname: '/explorer/home',
+        params: { institutionId: membership.institution_id },
+      } as any);
       return;
     }
 
-    const isSupportedDashboard = membership?.base_actor === 'student' || membership?.base_actor === 'teacher';
+    const isSupportedDashboard =
+      membership?.base_actor === 'student' ||
+      membership?.base_actor === 'teacher' ||
+      membership?.base_actor === 'guardian';
 
     if (membership && isSupportedDashboard) {
       const destination = getDashboardRoute(membership.base_actor);
@@ -140,7 +148,10 @@ export default function DiscoverScreen() {
       role: membership?.base_actor,
       status: membership?.status,
     });
-    router.push(`/explorer/institution/${membership.institution_id}` as any);
+    router.push({
+      pathname: '/explorer/home',
+      params: { institutionId: membership.institution_id },
+    } as any);
   }, [user, selectInstitution, getDashboardRoute, router]);
 
   const handleInstitutionClick = useCallback(async (institutionId: string) => {
@@ -149,7 +160,10 @@ export default function DiscoverScreen() {
       await openMembershipDashboard(membership);
       return;
     }
-    router.push(`/explorer/institution/${institutionId}` as any);
+    router.push({
+      pathname: '/explorer/home',
+      params: { institutionId },
+    } as any);
   }, [getMembershipForInstitution, openMembershipDashboard, router]);
 
   const handleFollow = async (institutionId: string) => {

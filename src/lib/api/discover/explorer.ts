@@ -1,5 +1,6 @@
 import { apiRequest } from '@/lib/client';
 import { PublicPost } from '@/lib/types/discover';
+import { resolveMediaUrl } from '@/lib/media';
 
 // Shape returned by GET /institutions/directory
 export interface DirectoryInstitution {
@@ -18,6 +19,17 @@ export interface DirectoryInstitution {
   follower_count: number;
   post_count?: number;
   public_post_count?: number;
+  accreditation_number?: string | null;
+  accreditation_document_url?: string | null;
+  contact_name?: string | null;
+  contact_title?: string | null;
+  contact_email?: string | null;
+  contact_phone?: string | null;
+  website?: string | null;
+  description?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  address?: string | null;
 }
 
 export interface DirectoryFilters {
@@ -44,6 +56,7 @@ export async function fetchInstitutionDirectory(
   );
   return data.institutions.map((institution) => ({
     ...institution,
+    logo_url: resolveMediaUrl(institution.logo_url),
     post_count: institution.post_count ?? institution.public_post_count ?? 0,
   }));
 }
@@ -51,7 +64,10 @@ export async function fetchInstitutionDirectory(
 /** GET /institutions/:id — single institution detail (public if visible) */
 export async function fetchInstitutionById(id: string, accessToken?: string): Promise<DirectoryInstitution> {
   const data = await apiRequest<{ institution: DirectoryInstitution }>(`/institutions/${id}`, {}, accessToken);
-  return data.institution;
+  return {
+    ...data.institution,
+    logo_url: resolveMediaUrl(data.institution.logo_url),
+  };
 }
 
 export async function fetchPublicPosts(institutionId: string): Promise<PublicPost[]> {
@@ -73,3 +89,37 @@ export const TYPE_LABELS: Record<string, string> = {
   training_school: 'Training School',
   secondary: 'Secondary School',
 };
+
+export interface UpdateInstitutionInput {
+  name?: string;
+  city?: string;
+  country?: string;
+  address?: string;
+  website_url?: string;
+  school_info_content?: string;
+  contact_name?: string;
+  contact_title?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  latitude?: number;
+  longitude?: number;
+  brand_accent_color?: string;
+  is_visible?: boolean;
+}
+
+/** PATCH /institutions/:id — update institution details (school_admin or platform_admin) */
+export async function updateInstitution(
+  institutionId: string,
+  input: UpdateInstitutionInput,
+  accessToken: string,
+): Promise<DirectoryInstitution> {
+  const data = await apiRequest<{ message: string; institution: DirectoryInstitution }>(
+    `/institutions/${institutionId}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    },
+    accessToken,
+  );
+  return data.institution;
+}

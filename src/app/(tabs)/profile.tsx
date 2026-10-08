@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Redirect } from 'expo-router';
 import {
   Alert,
   ActivityIndicator,
@@ -29,7 +30,7 @@ import { useBottomTabOffset } from '@/ui/tabBarOptions';
 export default function ProfileScreen() {
   const { colors, isDark } = useAppTheme();
   const bottomOffset = useBottomTabOffset(36);
-  const { user, accessToken, updateProfile, logout } = useAuth();
+  const { user, accessToken, updateProfile, logout, isAuthenticated } = useAuth();
   const { colorScheme, setColorScheme } = useColorScheme();
 
   // Profile details state
@@ -60,6 +61,10 @@ export default function ProfileScreen() {
       setPhone(user.phone ?? '');
     }
   }, [user]);
+
+  if (!isAuthenticated && !user) {
+    return <Redirect href="/(auth)" />;
+  }
 
   // Save personal details (Name, Username, Phone)
   const handleSaveProfile = async () => {

@@ -34,8 +34,13 @@ export default function RootLayout() {
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="(student)" />
+          <Stack.Screen name="(guardian)" />
           <Stack.Screen name="teacher" />
+          <Stack.Screen name="explorer/home" />
           <Stack.Screen name="explorer/institution/[id]" />
+          <Stack.Screen name="institution/[id]" />
+          <Stack.Screen name="institution/directions" />
+          <Stack.Screen name="institution/edit" />
         </Stack>
         <Toast config={toastConfig} position="top" topOffset={60} />
       </AuthProvider>

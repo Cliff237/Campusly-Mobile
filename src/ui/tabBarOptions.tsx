@@ -157,7 +157,7 @@ export function useTabBarOptions() {
     tabBarLabelPosition: 'below-icon',
     tabBarActiveTintColor: colors.brand,
     tabBarInactiveTintColor: colors.textMuted,
-    tabBarButton: (props: any) => <AnimatedTabBarButton {...props} />,
+    tabBarButton: AnimatedTabBarButton,
     tabBarStyle: {
       position: 'absolute',
       bottom: bottomOffset,

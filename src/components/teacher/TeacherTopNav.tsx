@@ -10,10 +10,15 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { initialsFromName } from '@/lib/format';
 import { showToast } from '@/ui/Toast';
 
+import { InstitutionMark } from '@/ui/InstitutionMark';
+import { href } from '@/lib/href';
+
 export function TeacherTopNav() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { currentMembership, selectedInstitutionId } = useAuth();
   const { colors } = useAppTheme();
+  const institutionId = currentMembership?.institution_id || selectedInstitutionId;
+  const institutionName = currentMembership?.institution_name || 'Institution';
 
   return (
     <View
@@ -53,36 +58,33 @@ export function TeacherTopNav() {
         </TouchableOpacity>
         <TouchableOpacity
           accessibilityRole="button"
-          accessibilityLabel="Profile"
+          accessibilityLabel={`${institutionName} Profile`}
           onPress={() => {
             haptics.light();
-            router.push('/(tabs)/profile');
+            if (institutionId) {
+              router.push(href(`/institution/${institutionId}`));
+            }
           }}
-          activeOpacity={0.7}
+          activeOpacity={0.75}
           style={{
             width: 40,
             height: 40,
             borderRadius: 20,
-            backgroundColor: colors.brandSoft,
+            backgroundColor: colors.surfaceMuted,
             alignItems: 'center',
             justifyContent: 'center',
             borderWidth: 1.5,
-            borderColor: colors.brand,
+            borderColor: currentMembership?.institution_brand_color || colors.brand,
             overflow: 'hidden',
           }}
         >
-          {user?.profile_image_url ? (
-            <Image
-              source={{ uri: user.profile_image_url }}
-              style={{ width: '100%', height: '100%' }}
-              contentFit="cover"
-              accessibilityLabel={`${user.full_name || 'User'} profile photo`}
-            />
-          ) : (
-            <AppText variant="label" weight="bold" tone="brand">
-              {initialsFromName(user?.full_name || 'Campusly')}
-            </AppText>
-          )}
+          <InstitutionMark
+            name={institutionName}
+            logoUrl={currentMembership?.institution_logo_url}
+            color={currentMembership?.institution_brand_color}
+            size={37}
+            radius={18.5}
+          />
         </TouchableOpacity>
       </View>
     </View>

@@ -1,4 +1,5 @@
 import { apiRequest } from "@/lib/client";
+import { resolveMediaUrl } from "@/lib/media";
 
 export interface Membership {
   membership_id: string;
@@ -27,7 +28,10 @@ export async function fetchMyMemberships(accessToken: string): Promise<Membershi
     {},
     accessToken
   );
-  return data.memberships;
+  return (data.memberships || []).map((m) => ({
+    ...m,
+    institution_logo_url: resolveMediaUrl(m.institution_logo_url),
+  }));
 }
 
 export type MembershipOtpRole = 'student' | 'guardian' | 'teacher' | 'staff';

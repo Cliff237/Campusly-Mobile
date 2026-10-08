@@ -9,7 +9,7 @@ import { tabIcon, useTabBarOptions } from '@/ui/tabBarOptions';
 import { haptics } from '@/lib/haptics';
 
 export default function StudentTabLayout() {
-  const { currentMembership, isReady } = useAuth();
+  const { currentMembership, isReady, isAuthenticated } = useAuth();
   const router = useRouter();
   const segments = useSegments();
   const { colors } = useAppTheme();
@@ -33,6 +33,10 @@ export default function StudentTabLayout() {
         <ActivityIndicator size="large" color={colors.brand} />
       </View>
     );
+  }
+
+  if (!isAuthenticated) {
+    return <Redirect href="/(auth)" />;
   }
 
   if (!currentMembership) {
@@ -94,6 +98,7 @@ export default function StudentTabLayout() {
         />
         <Tabs.Screen name="notifications" options={{ href: null, tabBarStyle: { display: 'none' } }} />
         <Tabs.Screen name="profile" options={{ href: null, tabBarStyle: { display: 'none' } }} />
+        <Tabs.Screen name="institution" options={{ href: null, tabBarStyle: { display: 'none' } }} />
         <Tabs.Screen name="compose" options={{ href: null, tabBarStyle: { display: 'none' } }} />
         <Tabs.Screen name="attendance" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       </Tabs>

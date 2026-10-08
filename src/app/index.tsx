@@ -32,13 +32,12 @@ import { useAppTheme } from '@/ui/useAppTheme';
  * Discover, but Discover itself is always the "home" tab.
  */
 export default function Index() {
-  const { user, isAuthenticated, isReady } = useAuth();
+  const { user, isAuthenticated, isReady, memberships, membershipsLoading } = useAuth();
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
 
-  // 1. Wait for auth state to hydrate from SecureStore
-  //    (prevents logged-in users from briefly seeing the auth screen)
-  if (!isReady) {
+  // 1. Wait for auth state to hydrate from SecureStore & initial memberships fetch
+  if (!isReady || (isAuthenticated && membershipsLoading)) {
     // Brand-coloured loading screen: continues straight into the auth hero.
     return (
       <LinearGradient
@@ -57,7 +56,14 @@ export default function Index() {
 
   // 2. Not authenticated → auth screen
   if (!isAuthenticated) {
-    return <Redirect href="/(auth)"  />;
+    return <Redirect href="/(auth)" />;
   }
+
+  // 3. Authenticated user without active institution memberships → Explorer Home
+  const activeMemberships = (memberships || []).filter((m) => m.status === 'active');
+  if (activeMemberships.length === 0 && !user?.is_platform_admin) {
+    return <Redirect href="/explorer/home" />;
+  }
+
   return <Redirect href="/(tabs)/discover" />;
 }
