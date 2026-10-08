@@ -17,15 +17,24 @@ export default function StudentTabLayout() {
   const isRoleHome = segments.length === 2 && segments[0] === '(student)';
 
   // At the top level of any student tab, Android back returns to Discover.
-  // Detail screens still keep their normal in-workspace back navigation.
-  useFocusEffect(useCallback(() => {
-    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (!isRoleHome) return false;
-      router.replace('/(tabs)/discover');
-      return true;
-    });
-    return () => subscription.remove();
-  }, [isRoleHome, router]));
+  // Detail screens and sub-routes safely fall back to student home.
+  useFocusEffect(
+    useCallback(() => {
+      const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+        if (isRoleHome) {
+          router.replace('/(tabs)/discover');
+          return true;
+        }
+        if (router.canGoBack()) {
+          router.back();
+          return true;
+        }
+        router.replace('/(student)/home');
+        return true;
+      });
+      return () => subscription.remove();
+    }, [isRoleHome, router]),
+  );
 
   if (!isReady) {
     return (

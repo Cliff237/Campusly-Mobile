@@ -48,11 +48,19 @@ export default function GuardianTabLayout() {
   }, [currentMembership?.institution_id, accessToken]);
 
   // At the top level of any guardian tab, Android back returns to Discover.
+  // Detail screens and sub-routes safely fall back to guardian home.
   useFocusEffect(
     useCallback(() => {
       const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-        if (!isRoleHome) return false;
-        router.replace('/(tabs)/discover');
+        if (isRoleHome) {
+          router.replace('/(tabs)/discover');
+          return true;
+        }
+        if (router.canGoBack()) {
+          router.back();
+          return true;
+        }
+        router.replace('/(guardian)/home');
         return true;
       });
       return () => subscription.remove();

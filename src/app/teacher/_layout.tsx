@@ -17,16 +17,25 @@ export default function TeacherLayout() {
   const options = useTabBarOptions();
 
   // Leaving the teacher workspace from its home tab returns to Discover rather
-  // than closing the application on Android.
+  // than closing the application on Android. Detail screens and sub-tabs safely fall back to teacher home.
   const isTeacherHome = segments.length === 2 && segments[0] === 'teacher' && segments[1] === 'home';
-  useFocusEffect(useCallback(() => {
-    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (!isTeacherHome) return false;
-      router.replace('/(tabs)/discover');
-      return true;
-    });
-    return () => subscription.remove();
-  }, [isTeacherHome, router]));
+  useFocusEffect(
+    useCallback(() => {
+      const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+        if (isTeacherHome) {
+          router.replace('/(tabs)/discover');
+          return true;
+        }
+        if (router.canGoBack()) {
+          router.back();
+          return true;
+        }
+        router.replace('/teacher/home');
+        return true;
+      });
+      return () => subscription.remove();
+    }, [isTeacherHome, router]),
+  );
 
   if (isReady && !isAuthenticated) {
     return <Redirect href="/(auth)" />;

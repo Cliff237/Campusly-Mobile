@@ -207,7 +207,11 @@ export default function DirectionsScreen() {
           accessibilityLabel="Back"
           onPress={() => {
             haptics.light();
-            router.back();
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace('/(tabs)/discover');
+            }
           }}
           activeOpacity={0.7}
           style={[styles.headerBtn, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}

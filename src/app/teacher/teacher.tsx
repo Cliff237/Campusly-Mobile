@@ -50,6 +50,10 @@ export default function TeacherDashboard() {
   useFocusEffect(
     useCallback(() => {
       const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+        if (router.canGoBack()) {
+          router.back();
+          return true;
+        }
         router.replace('/(tabs)/discover');
         return true;
       });

@@ -168,7 +168,13 @@ export default function TeacherCourseThread() {
         }}
       >
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace('/teacher/courses');
+            }
+          }}
           style={{ width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }}
         >
           <Ionicons name="chevron-back" size={22} color={colors.text} />

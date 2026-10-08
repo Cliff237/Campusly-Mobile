@@ -138,7 +138,13 @@ export default function AttendanceConfigureScreen() {
         {/* Header Bar */}
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 14 }}>
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace(segments[0] === 'teacher' ? '/teacher/home' : '/(student)/home');
+              }
+            }}
             style={{
               width: 44,
               height: 44,

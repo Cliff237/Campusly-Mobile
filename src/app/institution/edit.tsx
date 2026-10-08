@@ -161,7 +161,11 @@ export default function EditInstitutionScreen() {
 
       await updateInstitution(id, payload, accessToken);
       showToast.success('Saved', 'School information & map location updated successfully!');
-      router.back();
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace(`/institution/${id}`);
+      }
     } catch (err: any) {
       console.error('[EditInstitution] Save error:', err);
       showToast.error('Save Failed', err?.message || 'Could not update institution details.');
@@ -200,7 +204,13 @@ export default function EditInstitutionScreen() {
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel="Back"
-          onPress={() => router.back()}
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace(`/institution/${id}`);
+            }
+          }}
           activeOpacity={0.7}
           style={[styles.headerBtn, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}
         >

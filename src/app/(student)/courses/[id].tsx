@@ -326,7 +326,13 @@ export default function CourseDetailScreen() {
         }}
       >
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace('/(student)/courses');
+            }
+          }}
           style={{ width: 38, height: 38, alignItems: 'center', justifyContent: 'center' }}
         >
           <Ionicons name="chevron-back" size={22} color={colors.text} />

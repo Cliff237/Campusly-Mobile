@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, RefreshControl, ScrollView, TextInput, TouchableOpacity, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from 'nativewind';
 import { ThemedText } from '@/ui/ThemedText';
@@ -33,6 +34,7 @@ const getTypeIcon = (type: string, customTypes: CustomAssessmentType[]): keyof t
 };
 
 export default function TeacherMarksScreen() {
+  const router = useRouter();
   const { accessToken } = useAuth();
   const { colorScheme } = useColorScheme();
   const dark = colorScheme === 'dark';
@@ -50,13 +52,17 @@ export default function TeacherMarksScreen() {
   const [typeManager, setTypeManager] = useState(false);
   const [filterType, setFilterType] = useState<MarkAssessmentType | 'all'>('all');
 
+  const selectedRef = useRef<TeacherClass | null>(null);
+  selectedRef.current = selected;
+
   const load = useCallback(async (refresh = false) => {
     if (!accessToken) return;
     setRefreshing(refresh);
     try {
       const classList = await fetchTeacherClasses(accessToken);
       setClasses(classList);
-      const target = selected && classList.some((item) => item.id === selected.id) ? selected : classList[0] ?? null;
+      const currentSelected = selectedRef.current;
+      const target = currentSelected && classList.some((item) => item.id === currentSelected.id) ? currentSelected : classList[0] ?? null;
       setSelected(target);
       setSubmissions(target ? await fetchClassMarkSubmissions(target.id, accessToken) : []);
 
@@ -78,7 +84,7 @@ export default function TeacherMarksScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [accessToken, selected]);
+  }, [accessToken]);
 
   useEffect(() => {
     const task = setTimeout(() => void load(), 0);
@@ -136,11 +142,27 @@ export default function TeacherMarksScreen() {
     >
       {/* Header */}
       <View className="flex-row justify-between items-center mb-6">
-        <View>
-          <ThemedText variant="display">Marks</ThemedText>
-          <ThemedText variant="caption" className="text-text-muted dark:text-text-muted-dark mt-1">
-            Manage assessments and student grades
-          </ThemedText>
+        <View className="flex-row items-center gap-3">
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace('/teacher/home');
+              }
+            }}
+            className="w-10 h-10 rounded-2xl bg-surface dark:bg-surface-dark border border-border dark:border-border-dark items-center justify-center"
+          >
+            <Ionicons name="chevron-back" size={22} color={dark ? '#fff' : '#0f172a'} />
+          </TouchableOpacity>
+          <View>
+            <ThemedText variant="display">Marks</ThemedText>
+            <ThemedText variant="caption" className="text-text-muted dark:text-text-muted-dark mt-1">
+              Manage assessments and student grades
+            </ThemedText>
+          </View>
         </View>
         <View className="flex-row gap-2">
           <TouchableOpacity

@@ -55,8 +55,11 @@ export default function ComposeScreen() {
         accessToken,
       );
       haptics.success();
-      showToast.success('Posted', 'Your post is live');
-      router.back();
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/(student)/home');
+      }
     } catch (error) {
       showToast.error('Could not post', error instanceof Error ? error.message : 'Try again');
     } finally {

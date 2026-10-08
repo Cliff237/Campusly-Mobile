@@ -217,7 +217,16 @@ export default function InstitutionProfileScreen() {
             Try Again
           </AppText>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 16 }}>
+        <TouchableOpacity
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace('/(tabs)/discover');
+            }
+          }}
+          style={{ marginTop: 16 }}
+        >
           <AppText variant="body" tone="muted">
             Go Back
           </AppText>
@@ -252,7 +261,11 @@ export default function InstitutionProfileScreen() {
           accessibilityLabel="Back"
           onPress={() => {
             haptics.light();
-            router.back();
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace('/(tabs)/discover');
+            }
           }}
           activeOpacity={0.7}
           style={[styles.headerIconBtn, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}
@@ -797,7 +810,13 @@ export default function InstitutionProfileScreen() {
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel="Return to workspace"
-            onPress={() => router.back()}
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace('/(tabs)/discover');
+              }
+            }}
             activeOpacity={0.7}
             style={[
               styles.backToPortalBtn,
