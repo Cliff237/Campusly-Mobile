@@ -82,6 +82,8 @@ export default function TeacherLayout() {
               haptics.selection();
             },
           }}
+
+          
         />
         <Tabs.Screen
           name="roster"

@@ -20,6 +20,7 @@ import { showToast } from '@/ui/Toast';
 import { haptics } from '@/lib/haptics';
 import { useAppTheme } from '@/ui/useAppTheme';
 import { useScreenBottomPadding } from '@/ui/tabBarOptions';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   closeAttendanceSession,
   fetchAttendanceRoster,
@@ -104,6 +105,7 @@ export default function LiveAttendanceScreen() {
   const segments = useSegments();
   const { colors } = useAppTheme();
   const bottomPadding = useScreenBottomPadding(36);
+  const insets = useSafeAreaInsets();
   const { accessToken } = useAuth();
   const { stopBeacon } = useBLE();
 
@@ -213,6 +215,18 @@ export default function LiveAttendanceScreen() {
     }
   };
 
+  const confirmEndSession = () => {
+    haptics.warning();
+    Alert.alert(
+      'End live attendance?',
+      'Students not marked present will be marked absent when this session closes.',
+      [
+        { text: 'Keep Session Open', style: 'cancel' },
+        { text: 'End Session', style: 'destructive', onPress: () => void finish() },
+      ],
+    );
+  };
+
   useEffect(() => {
     const id = setInterval(() => setRemaining((value) => Math.max(0, value - 1)), 1000);
     return () => clearInterval(id);
@@ -243,7 +257,7 @@ export default function LiveAttendanceScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ padding: 20, paddingBottom: bottomPadding }}
+          contentContainerStyle={{ padding: 20, paddingBottom: bottomPadding + 96 }}
           showsVerticalScrollIndicator={false}
         >
           {/* Top Session Bar with Campusly Brand Logo */}
@@ -269,21 +283,21 @@ export default function LiveAttendanceScreen() {
             </View>
 
             <TouchableOpacity
+              activeOpacity={0.75}
               disabled={closing}
-              onPress={() =>
-                Alert.alert(
-                  'End live attendance?',
-                  'Students not marked present will be marked absent when this session closes.',
-                  [
-                    { text: 'Keep Session Open', style: 'cancel' },
-                    { text: 'End Session', style: 'destructive', onPress: () => void finish() },
-                  ],
-                )
-              }
-              style={styles.end}
+              onPress={confirmEndSession}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              style={styles.endHeaderBtn}
+              accessibilityRole="button"
+              accessibilityLabel="End attendance session"
             >
-              <AppText variant="caption" weight="bold" style={{ color: '#FFFFFF' }}>
-                {closing ? 'Ending…' : 'End Session'}
+              {closing ? (
+                <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 5 }} />
+              ) : (
+                <Ionicons name="stop-circle" size={17} color="#FDA4AF" style={{ marginRight: 5 }} />
+              )}
+              <AppText variant="caption" weight="extrabold" style={{ color: '#FFFFFF' }}>
+                {closing ? 'Ending…' : 'End'}
               </AppText>
             </TouchableOpacity>
           </View>
@@ -484,6 +498,39 @@ export default function LiveAttendanceScreen() {
             )}
           </View>
         </ScrollView>
+
+        {/* Floating Thumb-Friendly Bottom Action Bar */}
+        <View
+          style={[
+            styles.bottomBarContainer,
+            { paddingBottom: Math.max(insets.bottom, 16) },
+          ]}
+        >
+          <TouchableOpacity
+            activeOpacity={0.85}
+            disabled={closing}
+            onPress={confirmEndSession}
+            style={styles.bottomEndBtn}
+            accessibilityRole="button"
+            accessibilityLabel="End live attendance session"
+          >
+            <LinearGradient
+              colors={['#E11D48', '#BE123C']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.bottomEndGradient}
+            >
+              {closing ? (
+                <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
+              ) : (
+                <Ionicons name="stop-circle" size={22} color="#FFFFFF" style={{ marginRight: 8 }} />
+              )}
+              <AppText variant="subheading" weight="extrabold" style={{ color: '#FFFFFF' }}>
+                {closing ? 'Ending Live Attendance…' : 'End Live Attendance'}
+              </AppText>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
       </KeyboardAvoidingView>
     </View>
   );
@@ -508,13 +555,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  end: {
-    backgroundColor: 'rgba(200, 52, 79, 0.25)',
-    borderWidth: 1,
-    borderColor: 'rgba(200, 52, 79, 0.5)',
-    borderRadius: 16,
+  endHeaderBtn: {
+    backgroundColor: 'rgba(225, 29, 72, 0.28)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(244, 63, 94, 0.65)',
+    borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 38,
+  },
+  bottomBarContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    backgroundColor: 'rgba(14, 11, 28, 0.94)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  bottomEndBtn: {
+    borderRadius: 18,
+    overflow: 'hidden',
+    shadowColor: '#E11D48',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  bottomEndGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 18,
   },
   pulse: {
     position: 'absolute',
